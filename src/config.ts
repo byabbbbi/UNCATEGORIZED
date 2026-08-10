@@ -1,1 +1,1 @@
-export const PROXY_URL = 'https://uncategorized.thesiminmeat.workers.dev';
+export const PROXY_URL = 'https://uncat-ai.thesiminmeat.workers.dev'
