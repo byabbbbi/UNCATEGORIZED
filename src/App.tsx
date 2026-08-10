@@ -8,6 +8,7 @@ import { VaultModal } from './components/VaultModal'
 import { TitleScreen } from './components/TitleScreen'
 import { EndingScreen } from './components/EndingScreen'
 import { ShardFlights } from './components/ShardFlights'
+import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { useGameStore } from './store/gameStore'
 import { unlockAudio } from './sfx'
@@ -52,6 +53,7 @@ export default function App() {
     return (
       <div onPointerDown={() => unlockAudio()}>
         <TitleScreen />
+        <DebugBadge />
       </div>
     )
   }
@@ -158,6 +160,7 @@ export default function App() {
 
       <VaultModal />
       {screen === 'ending' && <EndingScreen />}
+      <DebugBadge />
     </div>
   )
 }

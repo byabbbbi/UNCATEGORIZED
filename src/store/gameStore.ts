@@ -28,6 +28,7 @@ import {
 } from '../data/gachaPool'
 import { calcProclaimImpact } from '../game/formulas'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
+import { josa } from '../utils/josa'
 import type {
   CanvasInstance,
   ChronicleEntry,
@@ -480,7 +481,7 @@ function declareOnAltar(instanceId: string) {
 
   const line = entry(
     s.era,
-    `${concept.emoji} ${concept.name}을(를) ${PILLAR_KO[pillarKey]}에 선포했다.`,
+    `${concept.emoji} ${concept.name}${josa(concept.name, ['을', '를'])} ${PILLAR_KO[pillarKey]}에 선포했다.`,
   )
 
   const nextCoherence = Math.max(0, s.coherence - coherenceLoss)
@@ -608,7 +609,7 @@ function resolveSlot(
       ...chronicle,
       entry(
         cur.era,
-        `${previousName}가 ${result.name}로 다시 기록되었다. 이전 기록은 삭제되었다.`,
+        `${previousName}${josa(previousName, ['이', '가'])} ${result.name}로 다시 기록되었다. 이전 기록은 삭제되었다.`,
       ),
     ]
   } else if (isDiscovery) {
@@ -616,7 +617,8 @@ function resolveSlot(
       ...chronicle,
       entry(
         cur.era,
-        result.chronicle || `${result.name}이(가) 목록에 추가되었다.`,
+        result.chronicle ||
+          `${result.name}${josa(result.name, ['이', '가'])} 목록에 추가되었다.`,
       ),
     ]
   }
@@ -726,9 +728,12 @@ function combineAt(
   sfx.combine()
 
   const world = worldOf(s)
-  generate(a, b, world)
+  const owned = new Set(s.concepts.map((c) => c.name))
+  generate(a, b, world, owned)
     .then((res) => resolveSlot(slotId, res, a, b))
-    .catch(() => resolveSlot(slotId, fallbackGenerate(a, b, world), a, b))
+    .catch(() =>
+      resolveSlot(slotId, fallbackGenerate(a, b, world, owned), a, b),
+    )
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -957,7 +962,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         message: `회수: ${concept.emoji} ${concept.name}`,
         chronicle: [
           ...cur.chronicle,
-          entry(cur.era, `보관소에서 ${concept.name}을(를) 회수했다.`),
+          entry(
+            cur.era,
+            `보관소에서 ${concept.name}${josa(concept.name, ['을', '를'])} 회수했다.`,
+          ),
         ],
         fx: {
           ...get().fx,

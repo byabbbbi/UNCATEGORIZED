@@ -4,6 +4,7 @@ import { HARD_TABLE } from './data/combos'
 import { COLLAPSE_RULES } from './data/rules'
 import { PROXY_URL } from './config'
 import { calcT } from './game/formulas'
+import { josa } from './utils/josa'
 import type { Concept, PillarKey } from './types'
 
 export interface GenResult {
@@ -25,6 +26,53 @@ export interface WorldState {
   era: number
 }
 
+export type GenSource = 'hard' | 'idb' | 'preload' | 'api' | 'fallback'
+
+type GenDebugStats = {
+  hard: number
+  idb: number
+  preload: number
+  api: number
+  fallback: number
+  failures: number
+  lastError: string
+}
+
+const listeners = new Set<() => void>()
+
+export const genDebug: GenDebugStats = {
+  hard: 0,
+  idb: 0,
+  preload: 0,
+  api: 0,
+  fallback: 0,
+  failures: 0,
+  lastError: '',
+}
+
+function notifyDebug() {
+  listeners.forEach((fn) => fn())
+}
+
+function bumpSource(source: GenSource) {
+  genDebug[source] += 1
+  notifyDebug()
+}
+
+function recordFail(err: unknown) {
+  genDebug.failures += 1
+  genDebug.lastError =
+    err instanceof Error ? err.message : String(err ?? 'unknown')
+  notifyDebug()
+}
+
+export function subscribeGenDebug(fn: () => void) {
+  listeners.add(fn)
+  return () => {
+    listeners.delete(fn)
+  }
+}
+
 export const pairKey = (a: string, b: string) => [a, b].sort().join('+')
 
 export const cacheKey = (a: string, b: string, w: WorldState) =>
@@ -43,6 +91,7 @@ export async function generate(
   a: Concept,
   b: Concept,
   w: WorldState,
+  owned: Set<string> = new Set(),
 ): Promise<GenResult> {
   const key = cacheKey(a.name, b.name, w)
 
@@ -50,6 +99,7 @@ export async function generate(
   if (w.collapsed.length === 0 && w.contaminants.length === 0) {
     const hard = HARD_TABLE[pairKey(a.name, b.name)]
     if (hard) {
+      bumpSource('hard')
       return {
         name: hard.name,
         emoji: hard.emoji,
@@ -60,37 +110,46 @@ export async function generate(
         pillar: hard.pillar,
         contaminant: hard.contaminant ?? '',
         chronicle:
-          hard.chronicle ?? `${hard.name}이(가) 목록에 등재되었다.`,
+          hard.chronicle ??
+          `${hard.name}${josa(hard.name, ['이', '가'])} 목록에 등재되었다.`,
       }
     }
   }
 
   // 2. IndexedDB 캐시
   const cached = await idbGet(key)
-  if (cached) return cached as GenResult
+  if (cached) {
+    bumpSource('idb')
+    return cached as GenResult
+  }
 
   // 3. 프리로드 캐시
   const pre = (PRELOAD as Record<string, GenResult>)[key]
   if (pre) {
+    bumpSource('preload')
     await idbSet(key, pre)
     return pre
   }
 
   // 4. API (프록시 경유)
   try {
-    const raw = await callProxy(buildMessages(a, b, w), 6000)
+    const raw = await callProxy(buildMessages(a, b, w), 20000)
     if (isRefusal(raw)) {
       const del = deletedConcept()
       await idbSet(key, del)
+      bumpSource('api')
       return del
     }
     const result = normalize(parseModelJSON(raw), totalT(a, b, w))
     await idbSet(key, result)
+    bumpSource('api')
     return result
-  } catch {
+  } catch (err) {
+    recordFail(err)
     // 5. 로컬 폴백
-    const fb = fallbackGenerate(a, b, w)
+    const fb = fallbackGenerate(a, b, w, owned)
     await idbSet(key, fb)
+    bumpSource('fallback')
     return fb
   }
 }
@@ -127,7 +186,7 @@ function buildMessages(a: Concept, b: Concept, w: WorldState) {
 [세계 상태]
 무너진 범주의 규칙 — 결과 이름에 반드시 반영하라:
 ${rules.length ? rules.map((r) => '- ' + r).join('\n') : '- 없음. 평범하고 자연스러운 결과를 낼 것.'}
-${roll ? `오염 지시: 결과 이름에 '${roll}'을(를) 자연스럽게 섞어라.` : ''}
+${roll ? `오염 지시: 결과 이름에 '${roll}'${josa(roll, ['을', '를'])} 자연스럽게 섞어라.` : ''}
 
 [출력 형식]
 {"name":"한국어 2~12자","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
@@ -210,27 +269,89 @@ function deletedConcept(): GenResult {
   }
 }
 
-/** 외부(데모 시드·가챠 변형)에서도 쓰는 폴백 생성기 */
-const SAME_FORMS = ['무리', '층', '더미', '군집', '연쇄', '심층']
-const JOIN_FORMS = [
-  (a: string, b: string) => `${a}의 ${b}`,
-  (a: string, b: string) => `${b} 속 ${a}`,
-  (a: string, b: string) => `${a}에서 난 ${b}`,
-  (a: string, b: string) => `${b}가 된 ${a}`,
+const LEXICON = [
+  '잿더미', '수맥', '석판', '유적', '서릿발', '불티', '늪', '종유석', '뿌리', '앙금',
+  '여울', '벼랑', '돌기둥', '잔해', '티끌', '그을음', '무쇠', '옹이', '물마루', '자갈',
+  '골짜기', '안개', '이끼', '진창', '화덕', '잔불', '물때', '소금기', '흙먼지', '바위턱',
+  '웅덩이', '개펄', '모래톱', '돌무지', '흙벽', '우물', '도랑', '둑', '언덕', '벌판',
+  '수풀', '덤불', '껍질', '씨앗', '줄기', '열매', '비늘', '뼈', '가루', '덩어리',
+  '파편', '결정', '광맥', '광석', '쇳물', '층리', '단층', '균열', '구멍', '메아리',
+  '울림', '침묵', '여운', '그늘', '서리', '이슬', '물보라', '불씨', '재층', '틈새',
 ]
 
-function fallbackName(a: Concept, b: Concept, rnd: () => number): string {
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
-  if (a.name === b.name) return `${a.name} ${pick(SAME_FORMS)}`
-  return pick(JOIN_FORMS)(a.name, b.name)
+const SAME_FORMS = ['무리', '층', '더미', '군집', '연쇄', '심층']
+const MAX_FALLBACK_LEN = 8
+
+/** "벽돌에서 난 대양" → "대양" */
+function headNoun(name: string): string {
+  const last = name.trim().split(/\s+/).pop() ?? name
+  return last.replace(/[의를을이가과와은는에서속]$/u, '') || last
 }
 
-export function fallbackGenerate(a: Concept, b: Concept, w: WorldState): GenResult {
+function pickUnusedLexicon(rnd: () => number, owned: Set<string>): string {
+  const start = Math.floor(rnd() * LEXICON.length)
+  for (let i = 0; i < LEXICON.length; i++) {
+    const w = LEXICON[(start + i) % LEXICON.length]
+    if (!owned.has(w)) return w
+  }
+  return `${LEXICON[start]} ${2 + Math.floor(rnd() * 90)}`
+}
+
+function fallbackName(
+  a: Concept,
+  b: Concept,
+  rnd: () => number,
+  owned: Set<string>,
+): string {
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
+  const ha = headNoun(a.name)
+  const hb = headNoun(b.name)
+
+  if (ha === hb) {
+    const n = `${ha} ${pick(SAME_FORMS)}`
+    return n.length <= MAX_FALLBACK_LEN ? n : pickUnusedLexicon(rnd, owned)
+  }
+
+  const joined = rnd() < 0.5 ? `${ha} ${hb}` : `${hb} ${ha}`
+  if (joined.length <= MAX_FALLBACK_LEN) return joined
+
+  // 결합이 길면 결합을 포기한다 — 여기가 폭주 차단점
+  return pickUnusedLexicon(rnd, owned)
+}
+
+function fallbackChronicle(name: string, rnd: () => number): string {
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
+  const iga = josa(name, ['이', '가'])
+  const eul = josa(name, ['을', '를'])
+  const eun = josa(name, ['은', '는'])
+  return pick([
+    `${name}${iga} 목록에 추가되었다. 담당 신은 판정을 보류했다.`,
+    `${name}의 등장이 접수되었다. 서류는 아직 처리되지 않았다.`,
+    `${name}${iga} 확인되었다. 분류 항목은 공란이다.`,
+    `${name}${iga} 등재되었다. 소관 부서는 미정이다.`,
+    `${name}에 대한 이의 신청 기간이 지났다.`,
+    `${name}${iga} 대장 여백에 기입되었다.`,
+    `${name}${eun} 임시 번호로 관리된다. 정식 번호는 배정되지 않았다.`,
+    `${name}의 존재가 보고되었다. 회신은 없었다.`,
+    `${name}${iga} 접수되었다. 처리 기한은 명시되지 않았다.`,
+    `${name}${eul} 어느 항목에 넣을지 논의가 있었다. 결론은 나지 않았다.`,
+    `${name}${iga} 목록 끝에 붙었다. 순서에 의미는 없다.`,
+    `${name}${iga} 기록되었다. 담당자는 서명하지 않았다.`,
+  ])
+}
+
+/** 외부(데모 시드·가챠 변형)에서도 쓰는 폴백 생성기 */
+export function fallbackGenerate(
+  a: Concept,
+  b: Concept,
+  w: WorldState,
+  owned: Set<string> = new Set(),
+): GenResult {
   const seed = hashStr(pairKey(a.name, b.name))
   const rnd = mulberry32(seed)
   const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
 
-  let name = fallbackName(a, b, rnd)
+  let name = fallbackName(a, b, rnd, owned)
 
   if (w.collapsed.includes('quality'))
     name = pick(['바삭한', '투명한', '매우 느린', '거대한', '접힌']) + ' ' + name
@@ -243,13 +364,15 @@ export function fallbackGenerate(a: Concept, b: Concept, w: WorldState): GenResu
 
   if (w.contaminants.length && rnd() < 0.3) name = pick(w.contaminants) + ' ' + name
 
+  name = name.slice(0, 14)
+
   const T = totalT(a, b, w)
   const c = Math.round(T * (0.25 + rnd() * 0.35))
   const p = Math.round(T * (0.2 + rnd() * 0.35))
   const n = Math.round((T - c - p) * rnd())
 
   return {
-    name: name.slice(0, 20),
+    name,
     emoji: rnd() < 0.5 ? a.emoji : b.emoji,
     chaos: c,
     plausibility: p,
@@ -257,11 +380,7 @@ export function fallbackGenerate(a: Concept, b: Concept, w: WorldState): GenResu
     contagion: Math.max(0, T - c - p - n),
     pillar: pick(['substance', 'quantity', 'quality', 'time'] as const),
     contaminant: a.name.slice(0, 4),
-    chronicle: pick([
-      `${name}이(가) 목록에 추가되었다. 담당 신은 판정을 보류했다.`,
-      `${name}의 등장이 접수되었다. 서류는 아직 처리되지 않았다.`,
-      `${name}이(가) 확인되었다. 분류 항목은 공란이다.`,
-    ]),
+    chronicle: fallbackChronicle(name, rnd),
   }
 }
 
@@ -278,7 +397,7 @@ export function applyCollapseName(name: string, collapsed: PillarKey[], seed: nu
     out += ` 제${100 + Math.floor(rnd() * 900)}호`
   if (collapsed.includes('substance') && rnd() < 0.4)
     out = out.split('').reverse().join('')
-  return out.slice(0, 20)
+  return out.slice(0, 14)
 }
 
 export function hashStr(s: string) {
