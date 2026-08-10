@@ -1,0 +1,63 @@
+.title-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 31px,
+      color-mix(in srgb, var(--rule) 40%, transparent) 32px
+    ),
+    var(--form);
+}
+
+.title-screen__panel {
+  text-align: center;
+  max-width: 420px;
+}
+
+.title-screen__brand {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: clamp(28px, 6vw, 42px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.title-screen__latin {
+  margin: 10px 0 36px;
+  font-family: var(--font-latin);
+  font-size: 13px;
+  letter-spacing: 0.25em;
+  color: var(--ink-dim);
+}
+
+.title-screen__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title-screen__btn {
+  appearance: none;
+  border: 1px solid var(--ink);
+  background: var(--form-light);
+  color: var(--ink);
+  font-family: var(--font-decree);
+  font-size: 16px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+
+.title-screen__btn:hover {
+  border-color: var(--seal);
+  color: var(--seal);
+}
+
+.title-screen__btn--demo {
+  border-color: var(--seal);
+  color: var(--seal);
+}
