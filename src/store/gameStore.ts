@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import { applyCollapseName, generate, hashStr, type WorldState } from '../generation'
+import {
+  applyCollapseName,
+  fallbackGenerate,
+  generate,
+  hashStr,
+  type WorldState,
+} from '../generation'
 import {
   INITIAL_CONCEPTS,
   INITIAL_PILLARS,
@@ -30,6 +36,7 @@ import type {
   Pillar,
   PillarKey,
   ScreenMode,
+  TutorialStep,
   VaultGrade,
 } from '../types'
 import {
@@ -70,7 +77,6 @@ function centerOf(inst: CanvasInstance) {
 
 const emptyFx = (): FxState => ({
   rejectInstanceId: null,
-  combining: null,
   sealFlash: false,
   whiteFlash: false,
   screenShake: 0,
@@ -103,6 +109,8 @@ export interface GameStore {
   chronicle: ChronicleEntry[]
   proclamationsThisEra: number
   instances: CanvasInstance[]
+  pending: Record<string, true>
+  tutorialStep: TutorialStep
   selectedInstanceId: string | null
   hoverConceptId: string | null
   targetPillar: PillarKey | null
@@ -131,6 +139,7 @@ export interface GameStore {
   pullVault: () => void
   clearTypingRule: () => void
   clearGodLine: () => void
+  dismissTutorial: () => void
   toggleMute: () => void
 }
 
@@ -163,6 +172,7 @@ function createPlayState(opts?: {
   | 'pullVault'
   | 'clearTypingRule'
   | 'clearGodLine'
+  | 'dismissTutorial'
   | 'toggleMute'
 > {
   chronicleSeq = 0
@@ -194,6 +204,8 @@ function createPlayState(opts?: {
       proclamationsThisEra:
         MAX_PROCLAMATIONS_PER_ERA - DEMO_SAVE.declaresLeft,
       instances: seedInstances(concepts),
+      pending: {},
+      tutorialStep: 'done',
       selectedInstanceId: null,
       hoverConceptId: null,
       targetPillar: null,
@@ -205,6 +217,9 @@ function createPlayState(opts?: {
   }
 
   const concepts = INITIAL_CONCEPTS.map((c) => ({ ...c }))
+  const tutorialDone =
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem('tutorialDone') === '1'
   return {
     screen: 'play',
     ending: null,
@@ -220,6 +235,8 @@ function createPlayState(opts?: {
     chronicle: [entry(1, '제1시대가 열린다. 네 기둥 아래 첫 개념이 놓인다.')],
     proclamationsThisEra: 0,
     instances: seedInstances(concepts),
+    pending: {},
+    tutorialStep: tutorialDone ? 'done' : 1,
     selectedInstanceId: null,
     hoverConceptId: null,
     targetPillar: null,
@@ -463,52 +480,29 @@ function declareOnAltar(instanceId: string) {
   checkBlankEnding(nextCoherence)
 }
 
-async function combineAt(
-  aId: string,
-  bId: string,
-  point: { x: number; y: number },
-) {
-  const s = useGameStore.getState()
-  if (s.fx.inputLocked || s.screen !== 'play') return
-
-  const aInst = s.instances.find((i) => i.instanceId === aId)
-  const bInst = s.instances.find((i) => i.instanceId === bId)
-  if (!aInst || !bInst) return
-
-  const a = s.concepts.find((c) => c.id === aInst.conceptId)
-  const b = s.concepts.find((c) => c.id === bInst.conceptId)
-  if (!a || !b) return
-
-  if (a.deleted || b.deleted) {
-    useGameStore.setState({ message: '삭제된 개념은 조합할 수 없다' })
-    sfx.reject()
-    shakeReject(aId)
-    return
+function markTutorial(step: TutorialStep) {
+  const cur = useGameStore.getState().tutorialStep
+  if (cur === 'done' || cur === 0) return
+  if (typeof step === 'number' && typeof cur === 'number' && step <= cur) return
+  if (step === 'done') {
+    try {
+      localStorage.setItem('tutorialDone', '1')
+    } catch {
+      /* ignore */
+    }
   }
+  useGameStore.setState({ tutorialStep: step })
+}
 
-  // 로딩: 카드 뒷면 회전
-  useGameStore.setState({
-    fx: {
-      ...s.fx,
-      combining: {
-        aId,
-        bId,
-        resultConceptId: null,
-        x: point.x - CARD_W / 2,
-        y: point.y - CARD_H / 2,
-        isDiscovery: false,
-        loading: true,
-      },
-      inputLocked: true,
-    },
-    message: '조합 판정 중…',
-  })
-  sfx.combine()
-
-  const result = await generate(a, b, worldOf(s))
-
+function resolveSlot(
+  slotId: string,
+  result: Awaited<ReturnType<typeof generate>>,
+  a: Concept,
+  b: Concept,
+) {
   const cur = useGameStore.getState()
-  if (!cur.fx.combining) return
+  const slot = cur.instances.find((i) => i.instanceId === slotId)
+  if (!slot?.processing) return
 
   const existing = cur.concepts.find(
     (c) => c.name === result.name && !c.deleted === !result.deleted,
@@ -552,34 +546,41 @@ async function combineAt(
     contaminants = [...contaminants, result.contaminant]
   }
 
-  const chronicleLine = isDiscovery
-    ? entry(cur.era, result.chronicle || `${result.name}이(가) 목록에 추가되었다.`)
-    : null
+  const { [slotId]: _gone, ...restPending } = cur.pending
+  void _gone
 
   useGameStore.setState({
     concepts,
     discoveredIds,
     coherence,
     contaminants,
+    pending: restPending,
     stats: isDiscovery
       ? { ...cur.stats, discoveries: cur.stats.discoveries + 1 }
       : cur.stats,
-    chronicle: chronicleLine
-      ? [...cur.chronicle, chronicleLine]
+    chronicle: isDiscovery
+      ? [
+          ...cur.chronicle,
+          entry(
+            cur.era,
+            result.chronicle || `${result.name}이(가) 목록에 추가되었다.`,
+          ),
+        ]
       : cur.chronicle,
-    fx: {
-      ...cur.fx,
-      combining: {
-        aId,
-        bId,
-        resultConceptId: concept.id,
-        x: point.x - CARD_W / 2,
-        y: point.y - CARD_H / 2,
-        isDiscovery,
-        loading: false,
-      },
-      inputLocked: true,
-    },
+    instances: cur.instances.map((i) =>
+      i.instanceId === slotId
+        ? {
+            instanceId: slotId,
+            conceptId: concept.id,
+            x: i.x,
+            y: i.y,
+            processing: false,
+            revealDiscovery: isDiscovery,
+          }
+        : i,
+    ),
+    selectedInstanceId: slotId,
+    hoverConceptId: concept.id,
     message: isDiscovery
       ? result.deleted
         ? '검열된 개념이 기록되었다'
@@ -590,33 +591,69 @@ async function combineAt(
   if (isDiscovery) sfx.discover()
   else sfx.combine()
 
+  if (isDiscovery) markTutorial(2)
+  const afterCount = useGameStore.getState().concepts.length
+  if (afterCount >= 6) markTutorial(3)
+
   window.setTimeout(() => {
-    const after = useGameStore.getState()
-    const fx = after.fx.combining
-    if (!fx || !fx.resultConceptId) {
-      useGameStore.setState((st) => ({
-        fx: { ...st.fx, combining: null, inputLocked: false },
-      }))
-      return
-    }
-    const nextInst: CanvasInstance = {
-      instanceId: uid('i'),
-      conceptId: fx.resultConceptId,
-      x: fx.x,
-      y: fx.y,
-    }
-    useGameStore.setState({
-      instances: [
-        ...after.instances.filter(
-          (i) => i.instanceId !== fx.aId && i.instanceId !== fx.bId,
-        ),
-        nextInst,
-      ],
-      selectedInstanceId: nextInst.instanceId,
-      hoverConceptId: fx.resultConceptId,
-      fx: { ...after.fx, combining: null, inputLocked: false },
-    })
-  }, 520)
+    useGameStore.setState((st) => ({
+      instances: st.instances.map((i) =>
+        i.instanceId === slotId ? { ...i, revealDiscovery: false } : i,
+      ),
+    }))
+  }, 900)
+}
+
+function combineAt(
+  aId: string,
+  bId: string,
+  point: { x: number; y: number },
+) {
+  const s = useGameStore.getState()
+  if (s.fx.inputLocked || s.screen !== 'play') return
+
+  const aInst = s.instances.find((i) => i.instanceId === aId)
+  const bInst = s.instances.find((i) => i.instanceId === bId)
+  if (!aInst || !bInst || aInst.processing || bInst.processing) return
+
+  const a = s.concepts.find((c) => c.id === aInst.conceptId)
+  const b = s.concepts.find((c) => c.id === bInst.conceptId)
+  if (!a || !b) return
+
+  if (a.deleted || b.deleted) {
+    useGameStore.setState({ message: '삭제된 개념은 조합할 수 없다' })
+    sfx.reject()
+    shakeReject(aId)
+    return
+  }
+
+  const slotId = uid('slot')
+  const slot: CanvasInstance = {
+    instanceId: slotId,
+    conceptId: '',
+    x: point.x - CARD_W / 2,
+    y: point.y - CARD_H / 2,
+    processing: true,
+  }
+
+  useGameStore.setState({
+    instances: [
+      ...s.instances.filter(
+        (i) => i.instanceId !== aId && i.instanceId !== bId,
+      ),
+      slot,
+    ],
+    pending: { ...s.pending, [slotId]: true },
+    selectedInstanceId: null,
+    message: '조합 판정 중…',
+    tutorialStep: s.tutorialStep === 1 ? 2 : s.tutorialStep,
+  })
+  sfx.combine()
+
+  const world = worldOf(s)
+  generate(a, b, world)
+    .then((res) => resolveSlot(slotId, res, a, b))
+    .catch(() => resolveSlot(slotId, fallbackGenerate(a, b, world), a, b))
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -684,15 +721,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.fx.inputLocked || state.screen !== 'play') return
     const dragged = state.instances.find((i) => i.instanceId === instanceId)
-    if (!dragged) return
+    if (!dragged || dragged.processing) return
 
     if (dist(center.x, center.y, altar.x, altar.y) < ALTAR_R) {
       declareOnAltar(instanceId)
+      if (state.tutorialStep === 3) {
+        try {
+          localStorage.setItem('tutorialDone', '1')
+        } catch {
+          /* ignore */
+        }
+        set({ tutorialStep: 'done' })
+      }
       return
     }
 
     const target = state.instances
-      .filter((c) => c.instanceId !== instanceId)
+      .filter((c) => c.instanceId !== instanceId && !c.processing)
       .map((c) => {
         const mid = centerOf(c)
         return { c, d: dist(center.x, center.y, mid.x, mid.y) }
@@ -701,7 +746,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       .sort((a, b) => a.d - b.d)[0]
 
     if (target) {
-      void combineAt(instanceId, target.c.instanceId, center)
+      combineAt(instanceId, target.c.instanceId, center)
       return
     }
 
@@ -852,4 +897,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearTypingRule: () => set((s) => ({ fx: { ...s.fx, typingRule: null } })),
   clearGodLine: () => set((s) => ({ fx: { ...s.fx, godLine: null } })),
+
+  dismissTutorial: () => {
+    try {
+      localStorage.setItem('tutorialDone', '1')
+    } catch {
+      /* ignore */
+    }
+    set({ tutorialStep: 'done' })
+  },
 }))

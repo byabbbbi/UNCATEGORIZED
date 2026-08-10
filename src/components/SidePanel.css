@@ -133,8 +133,7 @@
   overflow: hidden;
 }
 
-.pillar-row__fill {
-  height: 100%;
+.pillar-row.is-judge .pillar-row__fill {
   background: var(--ink);
 }
 

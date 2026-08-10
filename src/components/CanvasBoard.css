@@ -107,9 +107,27 @@
   }
 }
 
-.altar.is-stamping {
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--seal) 18%, transparent);
+.altar.is-pulse {
+  animation: altar-pulse 1.6s ease-in-out infinite;
 }
+
+@keyframes altar-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--seal) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--seal) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .altar.is-pulse {
+    animation: none;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--seal) 18%, transparent);
+  }
+}
+
 
 .result-burst {
   position: absolute;

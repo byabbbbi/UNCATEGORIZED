@@ -36,23 +36,18 @@ export interface CanvasInstance {
   conceptId: string
   x: number
   y: number
+  processing?: boolean
+  revealDiscovery?: boolean
 }
 
 export type EndingKind = 'blank' | 'indistinct' | 'classified' | null
 
 export type ScreenMode = 'title' | 'play' | 'ending'
 
+export type TutorialStep = 0 | 1 | 2 | 3 | 'done'
+
 export interface FxState {
   rejectInstanceId: string | null
-  combining: null | {
-    aId: string
-    bId: string
-    resultConceptId: string | null
-    x: number
-    y: number
-    isDiscovery: boolean
-    loading: boolean
-  }
   sealFlash: boolean
   whiteFlash: boolean
   screenShake: number

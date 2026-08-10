@@ -5,6 +5,7 @@ import {
   useMotionValue,
 } from 'motion/react'
 import { IndexCard } from './IndexCard'
+import { TutorialHint } from './TutorialHint'
 import { useGameStore } from '../store/gameStore'
 import { sfx } from '../sfx'
 import { ALTAR_R, CARD_H, CARD_W } from '../types'
@@ -22,6 +23,25 @@ function pillarsAliveMap(
   }
 }
 
+function ProcessingCard({ x, y }: { x: number; y: number }) {
+  return (
+    <motion.div
+      className="canvas-card card-back-loader"
+      style={{ position: 'absolute', left: x, top: y, zIndex: 8 }}
+      initial={{ opacity: 0.6, rotateY: 0 }}
+      animate={{ opacity: 1, rotateY: 360 }}
+      transition={{
+        opacity: { duration: 0.25 },
+        rotateY: { duration: 3, repeat: Infinity, ease: 'linear' },
+      }}
+    >
+      <span className="card-back-loader__wax" aria-hidden>
+        ❐
+      </span>
+    </motion.div>
+  )
+}
+
 function CanvasCard({
   instanceId,
   conceptId,
@@ -31,9 +51,8 @@ function CanvasCard({
   isDiscovery,
   selected,
   reject,
-  combining,
-  mergeTo,
   locked,
+  revealDiscovery,
 }: {
   instanceId: string
   conceptId: string
@@ -43,9 +62,8 @@ function CanvasCard({
   isDiscovery: boolean
   selected: boolean
   reject: boolean
-  combining: boolean
-  mergeTo: { x: number; y: number } | null
   locked: boolean
+  revealDiscovery: boolean
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -62,33 +80,19 @@ function CanvasCard({
     my.set(y)
   }, [x, y, mx, my])
 
-  useEffect(() => {
-    if (mergeTo) {
-      mx.set(mergeTo.x)
-      my.set(mergeTo.y)
-    }
-  }, [mergeTo, mx, my])
-
   if (!concept) return null
 
   return (
     <motion.div
       className="canvas-card"
       style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: selected ? 20 : 5 }}
-      drag={!combining && !locked && !concept.deleted}
+      drag={!locked && !concept.deleted}
       dragMomentum={false}
       dragElastic={0.08}
       whileDrag={{ scale: 1.06, rotate: 1.5, zIndex: 100 }}
-      animate={
-        combining && mergeTo
-          ? { scale: [1, 0.9], opacity: [1, 1, 0] }
-          : { scale: 1, opacity: 1, rotate: 0 }
-      }
-      transition={
-        combining
-          ? { duration: 0.31, times: [0, 0.55, 1] }
-          : { type: 'spring', stiffness: 500, damping: 32 }
-      }
+      initial={revealDiscovery ? { scale: 0.7, opacity: 0 } : false}
+      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
       onDragStart={() => sfx.pick()}
       onPointerDown={() => {
         selectInstance(instanceId)
@@ -102,18 +106,20 @@ function CanvasCard({
         const nx = mx.get()
         const ny = my.get()
         const center = { x: nx + CARD_W / 2, y: ny + CARD_H / 2 }
+        const rect = board.getBoundingClientRect()
         const altar = {
-          x: board.getBoundingClientRect().width / 2,
-          y: board.getBoundingClientRect().height - 72,
+          x: rect.width / 2,
+          y: rect.height - 72,
         }
         setInstancePos(instanceId, nx, ny)
         handleDrop(instanceId, center, altar)
       }}
     >
+      {revealDiscovery && <span className="result-burst__ring" />}
       <IndexCard
         concept={concept}
         pillarsAlive={alive}
-        isDiscovery={isDiscovery}
+        isDiscovery={isDiscovery || revealDiscovery}
         selected={selected}
         reject={reject}
       />
@@ -128,6 +134,7 @@ export function CanvasBoard() {
   const pillars = useGameStore((s) => s.pillars)
   const selectedInstanceId = useGameStore((s) => s.selectedInstanceId)
   const fx = useGameStore((s) => s.fx)
+  const tutorialStep = useGameStore((s) => s.tutorialStep)
   const spawnFromDrawer = useGameStore((s) => s.spawnFromDrawer)
   const collapsedCount = pillars.filter((p) => p.stability <= 0).length
   const alive = pillarsAliveMap(pillars)
@@ -140,7 +147,7 @@ export function CanvasBoard() {
   return (
     <section
       ref={boardRef}
-      className={`canvas-board${collapsedCount >= 3 ? ' is-skew' : ''}`}
+      className={`canvas-board${collapsedCount >= 3 ? ' is-skew' : ''}${tutorialStep === 3 ? ' is-altar-pulse' : ''}`}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -152,9 +159,10 @@ export function CanvasBoard() {
       }}
     >
       <div className="canvas-board__hint misreg">카드를 끌어 겹치면 조합 · 제단에 놓으면 선포</div>
+      <TutorialHint />
 
       <motion.div
-        className={`altar${fx.sealFlash ? ' is-stamping' : ''}`}
+        className={`altar${fx.sealFlash ? ' is-stamping' : ''}${tutorialStep === 3 ? ' is-pulse' : ''}`}
         style={{ width: ALTAR_R * 2, height: ALTAR_R * 2 }}
         animate={
           fx.sealFlash
@@ -169,13 +177,11 @@ export function CanvasBoard() {
 
       <AnimatePresence>
         {instances.map((inst) => {
-          const combining = fx.combining
-          const inCombine =
-            combining &&
-            (combining.aId === inst.instanceId || combining.bId === inst.instanceId)
-          const mergeTo = inCombine
-            ? { x: combining.x, y: combining.y }
-            : null
+          if (inst.processing) {
+            return (
+              <ProcessingCard key={inst.instanceId} x={inst.x} y={inst.y} />
+            )
+          }
           const concept = concepts.find((c) => c.id === inst.conceptId)
           if (!concept) return null
           return (
@@ -189,79 +195,12 @@ export function CanvasBoard() {
               isDiscovery={initialDiscoveries.has(inst.conceptId)}
               selected={selectedInstanceId === inst.instanceId}
               reject={fx.rejectInstanceId === inst.instanceId}
-              combining={!!inCombine}
-              mergeTo={mergeTo}
               locked={fx.inputLocked}
+              revealDiscovery={!!inst.revealDiscovery}
             />
           )
         })}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {fx.combining?.loading && (
-          <CardBackLoader key="loader" x={fx.combining.x} y={fx.combining.y} />
-        )}
-        {fx.combining && !fx.combining.loading && fx.combining.resultConceptId && (
-          <ResultBurst
-            key="burst"
-            x={fx.combining.x}
-            y={fx.combining.y}
-            conceptId={fx.combining.resultConceptId}
-            isDiscovery={fx.combining.isDiscovery}
-            alive={alive}
-          />
-        )}
-      </AnimatePresence>
     </section>
-  )
-}
-
-function CardBackLoader({ x, y }: { x: number; y: number }) {
-  return (
-    <motion.div
-      className="card-back-loader"
-      style={{ left: x, top: y }}
-      initial={{ opacity: 0, rotateY: 0 }}
-      animate={{ opacity: 1, rotateY: 360 }}
-      exit={{ opacity: 0 }}
-      transition={{
-        opacity: { duration: 0.2 },
-        rotateY: { duration: 2.4, repeat: Infinity, ease: 'linear' },
-      }}
-    >
-      <span className="card-back-loader__wax" aria-hidden>
-        ❐
-      </span>
-    </motion.div>
-  )
-}
-
-function ResultBurst({
-  x,
-  y,
-  conceptId,
-  isDiscovery,
-  alive,
-}: {
-  x: number
-  y: number
-  conceptId: string
-  isDiscovery: boolean
-  alive: Record<PillarKey, boolean>
-}) {
-  const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId))
-  if (!concept) return null
-  return (
-    <motion.div
-      className="result-burst"
-      style={{ left: x, top: y }}
-      initial={{ scale: 0.4, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-    >
-      {isDiscovery && <span className="result-burst__ring" />}
-      <IndexCard concept={concept} pillarsAlive={alive} isDiscovery={isDiscovery} />
-    </motion.div>
   )
 }
