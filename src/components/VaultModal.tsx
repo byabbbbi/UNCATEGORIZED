@@ -51,7 +51,7 @@ export function VaultModal() {
             exit={{ y: 16, opacity: 0 }}
           >
             <header>
-              <h2 className="misreg">분실물 보관소</h2>
+              <h2>분실물 보관소</h2>
               <button type="button" className="vault__close" onClick={closeVault}>
                 닫기
               </button>

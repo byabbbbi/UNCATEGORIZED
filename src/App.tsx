@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { ConceptDrawer } from './components/ConceptDrawer'
@@ -16,6 +16,20 @@ import { unlockAudio } from './sfx'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 
+function applyDecay(count: number) {
+  const root = document.documentElement
+  const body = document.body
+  root.style.setProperty('--decay', String(count))
+  for (let i = 1; i <= 4; i++) {
+    body.classList.toggle(`decay-${i}`, count === i)
+    root.classList.toggle(`decay-${i}`, count === i)
+  }
+  if (count > 4) {
+    body.classList.add('decay-4')
+    root.classList.add('decay-4')
+  }
+}
+
 export default function App() {
   const screen = useGameStore((s) => s.screen)
   const coherence = useGameStore((s) => s.coherence)
@@ -29,19 +43,19 @@ export default function App() {
   const fx = useGameStore((s) => s.fx)
   const codexOpen = useGameStore((s) => s.codexOpen)
   const toggleMute = useGameStore((s) => s.toggleMute)
-  const endEra = useGameStore((s) => s.endEra)
   const reset = useGameStore((s) => s.reset)
-  const tidyCanvas = useGameStore((s) => s.tidyCanvas)
   const openCodex = useGameStore((s) => s.openCodex)
   const closeCodex = useGameStore((s) => s.closeCodex)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const discoveryCount = discoveredIds.length
+  const remainingDeclares = Math.max(
+    0,
+    MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra,
+  )
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--misreg',
-      `${collapsed.length * 0.9}px`,
-    )
+    applyDecay(collapsed.length)
   }, [collapsed.length])
 
   useEffect(() => {
@@ -114,7 +128,7 @@ export default function App() {
               <span>발견</span>
               <motion.strong
                 key={fx.discoverPop}
-                className={`misreg topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
+                className={`topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
                 initial={fx.discoverPop > 0 ? { scale: 1.45, color: 'var(--gold)' } : false}
                 animate={{ scale: 1, color: 'var(--ink)' }}
                 transition={{ type: 'spring', stiffness: 420, damping: 14 }}
@@ -124,27 +138,27 @@ export default function App() {
             </label>
             <label>
               <span>정합성</span>
-              <strong className="misreg">
+              <strong>
                 <AnimatedNumber value={coherence} digits={1} />
               </strong>
             </label>
             <label>
               <span>시대</span>
-              <strong className="misreg">
+              <strong>
                 {era}/{MAX_ERA}
               </strong>
             </label>
             <label>
-              <span>선포</span>
-              <strong className="misreg">
-                {proclamationsThisEra}/{MAX_PROCLAMATIONS_PER_ERA}
+              <span>선포 잔여</span>
+              <strong>
+                {remainingDeclares}
               </strong>
             </label>
             <label>
               <span>파편</span>
               <motion.strong
                 key={fx.shardPop}
-                className="misreg topbar__shard-num"
+                className="topbar__shard-num"
                 animate={
                   fx.shardPop > 0 && !reduceMotion
                     ? { scale: [1, 1.25, 1] }
@@ -158,16 +172,7 @@ export default function App() {
           </div>
 
           <div className="topbar__actions">
-            {message && <p className="topbar__msg misreg">{message}</p>}
-            <button type="button" className="linkish" onClick={tidyCanvas}>
-              정리
-            </button>
-            <button type="button" className="linkish" onClick={endEra}>
-              시대 마감
-            </button>
-            <button type="button" className="linkish" onClick={reset}>
-              초기화
-            </button>
+            {message && <p className="topbar__msg">{message}</p>}
             <button
               type="button"
               className="linkish"
@@ -175,6 +180,13 @@ export default function App() {
               aria-label={muted ? '소리 켜기' : '음소거'}
             >
               {muted ? '🔇' : '🔊'}
+            </button>
+            <button
+              type="button"
+              className="topbar__reset"
+              onClick={() => setConfirmReset(true)}
+            >
+              초기화
             </button>
           </div>
         </header>
@@ -188,6 +200,50 @@ export default function App() {
           <SidePanel />
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {confirmReset && (
+          <motion.div
+            className="confirm-reset"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setConfirmReset(false)
+            }}
+          >
+            <motion.div
+              className="confirm-reset__panel"
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 8, opacity: 0 }}
+              role="dialog"
+              aria-label="초기화 확인"
+            >
+              <p>이 세계의 모든 기록이 사라집니다. 계속할까요?</p>
+              <div className="confirm-reset__actions">
+                <button
+                  type="button"
+                  className="confirm-reset__cancel"
+                  onClick={() => setConfirmReset(false)}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="confirm-reset__ok"
+                  onClick={() => {
+                    setConfirmReset(false)
+                    reset()
+                  }}
+                >
+                  초기화
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <VaultModal />
       <CodexModal />

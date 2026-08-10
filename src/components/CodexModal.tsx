@@ -107,7 +107,7 @@ export function CodexModal() {
           >
             <header className="codex__head">
               <div>
-                <h2 className="misreg">대장 · CODEX</h2>
+                <h2>대장 · CODEX</h2>
                 <span className="codex__count">{concepts.length}개</span>
               </div>
               <button type="button" className="vault__close" onClick={closeCodex}>

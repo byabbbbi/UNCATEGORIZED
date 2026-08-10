@@ -15,8 +15,8 @@
   /* 붕괴 시 드러나는 바탕 */
   --void: #0e1210;
 
-  /* 오프셋 어긋남 (붕괴 수에 따라 JS가 갱신) */
-  --misreg: 0px;
+  /* 붕괴 누적 (0~4). JS가 body/app에 반영 */
+  --decay: 0;
 
   /* 타이포 */
   --font-decree: 'Nanum Myeongjo', serif;
@@ -35,4 +35,37 @@
   :root {
     --reduce-motion: 1;
   }
+}
+
+/* 붕괴 누적 — 용지 변색 (텍스트 가독성 유지) */
+body,
+.app {
+  transition:
+    --form 1.2s ease,
+    --form-light 1.2s ease,
+    --rule 1.2s ease,
+    background-color 1.2s ease;
+}
+
+.decay-1 {
+  --form: #c6ccc7;
+  --form-light: #d9ded8;
+}
+
+.decay-2 {
+  --form: #c2c8c2;
+  --form-light: #d5dad3;
+  --rule: #8f9a92;
+}
+
+.decay-3 {
+  --form: #bdc4bd;
+  --form-light: #d0d6ce;
+  --rule: #8a958d;
+}
+
+.decay-4 {
+  --form: #b8bfb8;
+  --form-light: #cbd1c9;
+  --rule: #859089;
 }

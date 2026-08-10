@@ -34,7 +34,7 @@ export function SidePanel() {
     <aside className="side-panel">
       <section className="side-block">
         <header className="side-block__head">
-          <h2 className="misreg">생성 규칙</h2>
+          <h2>생성 규칙</h2>
           <span className="side-block__count">({collapsedRules.length})</span>
         </header>
         {collapsedRules.length === 0 ? (
@@ -42,7 +42,7 @@ export function SidePanel() {
         ) : (
           <ul className="rules-list">
             {collapsedRules.map((rule) => (
-              <li key={rule} className="misreg">
+              <li key={rule}>
                 {typingRule === rule ? (
                   <Typewriter
                     text={rule}
@@ -60,7 +60,7 @@ export function SidePanel() {
 
       <section className="side-block">
         <header className="side-block__head">
-          <h2 className="misreg">네 기둥</h2>
+          <h2>네 기둥</h2>
           <span className="side-block__count">선포 잔여 {remaining}</span>
         </header>
         <ul className="pillar-list">
@@ -78,7 +78,7 @@ export function SidePanel() {
 
       <section className="side-block side-block--chronicle">
         <header className="side-block__head">
-          <h2 className="misreg">연대기</h2>
+          <h2>연대기</h2>
         </header>
         <ol className="chronicle-list" ref={logRef}>
           {[...chronicle].reverse().map((e, idx) => (
@@ -87,7 +87,7 @@ export function SidePanel() {
               {idx === 0 ? (
                 <Typewriter text={e.text} msPerChar={30} className="chronicle-list__text" />
               ) : (
-                <span className="chronicle-list__text misreg">{e.text}</span>
+                <span className="chronicle-list__text">{e.text}</span>
               )}
             </li>
           ))}
@@ -128,7 +128,7 @@ function PillarRow({
         onClick={onSelect}
       >
         <div className="pillar-row__meta">
-          <strong className="pillar-row__latin misreg">
+          <strong className="pillar-row__latin">
             {PILLAR_LATIN[pillarKey]}
             <span className="pillar-row__ko"> · {PILLAR_KO[pillarKey]}</span>
           </strong>

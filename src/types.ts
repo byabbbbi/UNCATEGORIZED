@@ -95,8 +95,15 @@ export function gradeDelayMs(grade: VaultGrade): number {
 export const SEAL_GLYPH: Record<PillarKey, string> = {
   substance: 'Sb',
   quantity: 'Qn',
-  quality: 'Ql',
+  quality: 'Qa',
   time: 'Tp',
+}
+
+export const SEAL_TITLE: Record<PillarKey, string> = {
+  substance: 'SUBSTANTIA · 실재',
+  quantity: 'QUANTITAS · 측정',
+  quality: 'QUALITAS · 본질',
+  time: 'TEMPUS · 영겁',
 }
 
 export const CARD_W = 96

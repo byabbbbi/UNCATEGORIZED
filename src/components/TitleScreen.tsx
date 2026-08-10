@@ -14,7 +14,7 @@ export function TitleScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55 }}
       >
-        <h1 className="title-screen__brand misreg">UNCATEGORIZED</h1>
+        <h1 className="title-screen__brand">UNCATEGORIZED</h1>
         <p className="title-screen__latin">RES SINE CATEGORIA</p>
         <div className="title-screen__actions">
           <button type="button" className="title-screen__btn" onClick={startFresh}>

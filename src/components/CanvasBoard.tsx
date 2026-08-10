@@ -8,7 +8,9 @@ import {
 import { IndexCard } from './IndexCard'
 import { TutorialHint } from './TutorialHint'
 import { useGameStore } from '../store/gameStore'
+import { hashStr } from '../generation'
 import { sfx } from '../sfx'
+import { MAX_PROCLAMATIONS_PER_ERA } from '../data/initial'
 import { ALTAR_R, CARD_H, CARD_W } from '../types'
 import type { PillarKey } from '../types'
 import './CanvasBoard.css'
@@ -22,6 +24,17 @@ function pillarsAliveMap(
     quality: (pillars.find((p) => p.key === 'quality')?.stability ?? 0) > 0,
     time: (pillars.find((p) => p.key === 'time')?.stability ?? 0) > 0,
   }
+}
+
+function cardTiltDeg(conceptId: string, collapsed: number): number {
+  if (collapsed <= 0) return 0
+  const sign = hashStr(conceptId) & 1 ? 1 : -1
+  return sign * 0.4 * collapsed
+}
+
+function pointOverDrawer(clientX: number, clientY: number) {
+  const el = document.elementFromPoint(clientX, clientY)
+  return !!el?.closest('.drawer')
 }
 
 function ProcessingCard({ x, y }: { x: number; y: number }) {
@@ -43,11 +56,6 @@ function ProcessingCard({ x, y }: { x: number; y: number }) {
   )
 }
 
-function pointOverDrawer(clientX: number, clientY: number) {
-  const el = document.elementFromPoint(clientX, clientY)
-  return !!el?.closest('.drawer')
-}
-
 function CanvasCard({
   instanceId,
   conceptId,
@@ -60,6 +68,7 @@ function CanvasCard({
   locked,
   revealDiscovery,
   rerecord,
+  tilt,
 }: {
   instanceId: string
   conceptId: string
@@ -72,6 +81,7 @@ function CanvasCard({
   locked: boolean
   revealDiscovery: boolean
   rerecord: { previous: string; current: string } | null | undefined
+  tilt: number
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -108,7 +118,7 @@ function CanvasCard({
       dragElastic={0.08}
       whileDrag={{ scale: 1.06, rotate: 1.5, zIndex: 100 }}
       initial={revealDiscovery ? { scale: 0.7, opacity: 0 } : false}
-      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+      animate={{ scale: 1, opacity: 1, rotate: tilt }}
       transition={{ type: 'spring', stiffness: 420, damping: 22 }}
       onDragStart={() => {
         dragging.current = true
@@ -135,11 +145,18 @@ function CanvasCard({
         const nx = mx.get()
         const ny = my.get()
         const center = { x: nx + CARD_W / 2, y: ny + CARD_H / 2 }
-        const rect = board.getBoundingClientRect()
-        const altar = {
-          x: rect.width / 2,
-          y: rect.height - 72,
-        }
+        const boardRect = board.getBoundingClientRect()
+        const altarEl = board.querySelector('.altar')
+        const altarRect = altarEl?.getBoundingClientRect()
+        const altar = altarRect
+          ? {
+              x: altarRect.left - boardRect.left + altarRect.width / 2,
+              y: altarRect.top - boardRect.top + altarRect.height / 2,
+            }
+          : {
+              x: boardRect.width / 2,
+              y: boardRect.height - 112,
+            }
         setInstancePos(instanceId, nx, ny)
         handleDrop(instanceId, center, altar)
       }}
@@ -180,7 +197,11 @@ export function CanvasBoard() {
   const fx = useGameStore((s) => s.fx)
   const tutorialStep = useGameStore((s) => s.tutorialStep)
   const spawnFromDrawer = useGameStore((s) => s.spawnFromDrawer)
-  const collapsedCount = pillars.filter((p) => p.stability <= 0).length
+  const tidyCanvas = useGameStore((s) => s.tidyCanvas)
+  const endEra = useGameStore((s) => s.endEra)
+  const coherence = useGameStore((s) => s.coherence)
+  const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
+  const collapsedCount = useGameStore((s) => s.collapsed.length)
   const alive = pillarsAliveMap(pillars)
   const boardRef = useRef<HTMLElement>(null)
 
@@ -188,10 +209,14 @@ export function CanvasBoard() {
     discoveredIds.filter((id) => !['void', 'spark', 'clay', 'tide'].includes(id)),
   )
 
+  const eraUrgent =
+    proclamationsThisEra >= MAX_PROCLAMATIONS_PER_ERA || coherence <= 30
+
   return (
     <section
       ref={boardRef}
-      className={`canvas-board${collapsedCount >= 3 ? ' is-skew' : ''}${tutorialStep === 3 ? ' is-altar-pulse' : ''}`}
+      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}`}
+      style={{ ['--decay' as string]: collapsedCount }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -202,8 +227,22 @@ export function CanvasBoard() {
         spawnFromDrawer(conceptId, e.clientX - rect.left, e.clientY - rect.top)
       }}
     >
-      <div className="canvas-board__hint misreg">카드를 끌어 겹치면 조합 · 제단에 놓으면 선포</div>
+      <div className="canvas-rules" aria-hidden />
+      <div className="canvas-board__hint">카드를 끌어 겹치면 조합 · 제단에 놓으면 선포</div>
       <TutorialHint />
+
+      <button
+        type="button"
+        className="canvas-tool canvas-tool--tidy"
+        onClick={tidyCanvas}
+        disabled={fx.inputLocked}
+        title="캔버스 정리"
+      >
+        <span className="canvas-tool__icon" aria-hidden>
+          ⊞
+        </span>
+        <span className="canvas-tool__label">정리</span>
+      </button>
 
       <motion.div
         className={`altar${fx.sealFlash ? ' is-stamping' : ''}${tutorialStep === 3 ? ' is-pulse' : ''}`}
@@ -218,6 +257,15 @@ export function CanvasBoard() {
         <span className="altar__label">ARA</span>
         <span className="altar__sub">선포</span>
       </motion.div>
+
+      <button
+        type="button"
+        className={`era-close-btn${eraUrgent ? ' is-urgent' : ''}`}
+        onClick={endEra}
+        disabled={fx.inputLocked}
+      >
+        시대 마감
+      </button>
 
       <AnimatePresence>
         {instances.map((inst) => {
@@ -242,6 +290,7 @@ export function CanvasBoard() {
               locked={fx.inputLocked}
               revealDiscovery={!!inst.revealDiscovery}
               rerecord={inst.rerecord}
+              tilt={cardTiltDeg(inst.conceptId, collapsedCount)}
             />
           )
         })}

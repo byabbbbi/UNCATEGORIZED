@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { motion } from 'motion/react'
 import type { Concept, PillarKey } from '../types'
-import { SEAL_GLYPH, sealOf } from '../types'
+import { SEAL_GLYPH, SEAL_TITLE, sealOf } from '../types'
 import './IndexCard.css'
 
 interface Props {
@@ -34,12 +34,16 @@ export function IndexCard({
   const seal = sealOf(concept)
   const alive = pillarsAlive[seal]
   const glyph = concept.deleted ? '██' : alive ? SEAL_GLYPH[seal] : '✕'
+  const sealTitle = concept.deleted
+    ? undefined
+    : alive
+      ? SEAL_TITLE[seal]
+      : '범주 반납됨'
 
   return (
     <motion.div
       className={[
         'index-card',
-        'misreg',
         selected ? 'is-selected' : '',
         isDiscovery ? 'is-discovery' : '',
         !alive || concept.deleted ? 'is-unjudged' : '',
@@ -61,7 +65,10 @@ export function IndexCard({
       transition={reject ? { duration: 0.24 } : undefined}
       whileTap={{ scale: 0.96 }}
     >
-      <span className={`seal${!alive || concept.deleted ? ' is-void' : ''}`} aria-hidden>
+      <span
+        className={`seal${!alive || concept.deleted ? ' is-void' : ''}`}
+        title={sealTitle}
+      >
         {glyph}
       </span>
       <span className="index-card__emoji" aria-hidden>

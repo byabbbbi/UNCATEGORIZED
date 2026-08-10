@@ -297,13 +297,6 @@ function worldOf(s: {
   }
 }
 
-function setMisreg(collapsedCount: number) {
-  document.documentElement.style.setProperty(
-    '--misreg',
-    `${collapsedCount * 0.9}px`,
-  )
-}
-
 function reduceMotion(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -406,7 +399,6 @@ function runCollapseSequence(pillarKey: PillarKey) {
       const collapsed = s.collapsed.includes(pillarKey)
         ? s.collapsed
         : [...s.collapsed, pillarKey]
-      setMisreg(collapsed.length)
       return {
         collapsed,
         collapsedRules,
@@ -774,22 +766,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...titleState(),
 
   startFresh: () => {
-    setMisreg(0)
     set(createPlayState())
   },
 
   startDemo: () => {
-    setMisreg(DEMO_SAVE.collapsed.length)
     set(createPlayState({ demo: true }))
   },
 
   returnToTitle: () => {
-    setMisreg(0)
     set(titleState())
   },
 
   reset: () => {
-    setMisreg(0)
     set(titleState())
   },
 

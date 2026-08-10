@@ -2,25 +2,31 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 27px,
-      color-mix(in srgb, var(--rule) 35%, transparent) 28px
-    ),
-    var(--form);
+  background: var(--form);
   border: 1px solid var(--rule);
   overflow: hidden;
 }
 
-.canvas-board.is-skew {
-  transform: rotate(0.15deg);
+.canvas-rules {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 27px,
+    color-mix(in srgb, var(--rule) 35%, transparent) 28px
+  );
+  transform: skewY(calc(var(--decay, 0) * 0.12deg));
+  transform-origin: center top;
+  transition: transform 1.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .canvas-board.is-skew {
+  .canvas-rules {
     transform: none;
+    transition: none;
   }
 }
 
@@ -34,6 +40,45 @@
   color: var(--ink-dim);
   pointer-events: none;
   z-index: 1;
+}
+
+.canvas-tool {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  color: var(--ink-dim);
+  transition: opacity 0.15s ease;
+}
+
+.canvas-tool:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.canvas-tool:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.canvas-tool__icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.canvas-tool__label {
+  font-family: var(--font-data);
+  font-size: 9px;
+  letter-spacing: 0.08em;
 }
 
 .canvas-card {
@@ -78,7 +123,7 @@
 .altar {
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: 56px;
   translate: -50% 0;
   border-radius: 50%;
   border: 2px dashed color-mix(in srgb, var(--seal) 55%, var(--rule));
@@ -90,6 +135,57 @@
   gap: 2px;
   pointer-events: none;
   z-index: 2;
+}
+
+.era-close-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  translate: -50% 0;
+  z-index: 6;
+  appearance: none;
+  min-width: 140px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--seal);
+  border-radius: 2px;
+  background: var(--form-light);
+  color: var(--ink);
+  font-family: var(--font-decree);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.era-close-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--form-light) 80%, var(--seal));
+}
+
+.era-close-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.era-close-btn.is-urgent {
+  animation: era-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes era-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--seal) 0%, transparent);
+    border-color: var(--seal);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--seal) 18%, transparent);
+    border-color: color-mix(in srgb, var(--seal) 80%, var(--ink));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .era-close-btn.is-urgent {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--seal) 16%, transparent);
+  }
 }
 
 .altar__label {
