@@ -9,7 +9,7 @@ export const DEMO_SAVE = {
   shards: 10,
   declaresLeft: 3,
   collapsed: ['quantity', 'quality'] as PillarKey[],
-  contaminants: ['먼지'],
+  contaminantCounts: { 먼지: 3 } as Record<string, number>,
   pillars: { substance: 34, quantity: 0, quality: 0, time: 51 } as Record<
     PillarKey,
     number
@@ -35,7 +35,9 @@ export function buildDemoConcepts(): Concept[] {
   const base = INITIAL_CONCEPTS
   const w: WorldState = {
     collapsed: [...DEMO_SAVE.collapsed],
-    contaminants: [...DEMO_SAVE.contaminants],
+    contaminants: Object.entries(DEMO_SAVE.contaminantCounts)
+      .filter(([, n]) => n >= 3)
+      .map(([k]) => k),
     era: DEMO_SAVE.era,
   }
 

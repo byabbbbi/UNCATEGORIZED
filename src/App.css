@@ -122,7 +122,7 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: #fff;
+  background: var(--form-light);
   pointer-events: none;
   animation: flash-out 80ms steps(1, end) forwards;
 }

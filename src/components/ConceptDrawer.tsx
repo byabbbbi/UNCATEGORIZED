@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useGameStore } from '../store/gameStore'
 import './ConceptDrawer.css'
 
@@ -20,6 +20,18 @@ export function ConceptDrawer() {
   const progress = filled / 10
   const offset = RING_C * (1 - progress)
 
+  useEffect(() => {
+    const el = railRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
   const ordered = useMemo(() => {
     const byId = new Map(concepts.map((c) => [c.id, c]))
     const recent = [...discoveredIds]
@@ -36,15 +48,7 @@ export function ConceptDrawer() {
   return (
     <div className={`drawer${drawerHighlight ? ' is-drop-target' : ''}`}>
       <div className="drawer__rail-wrap">
-        <div
-          ref={railRef}
-          className="drawer__rail"
-          onWheel={(e) => {
-            if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
-            e.preventDefault()
-            e.currentTarget.scrollLeft += e.deltaY
-          }}
-        >
+        <div ref={railRef} className="drawer__rail">
           {ordered.map((c) => (
             <button
               key={c.id}

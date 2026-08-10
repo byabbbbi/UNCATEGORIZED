@@ -111,7 +111,7 @@ export interface GameStore {
   shards: number
   collapsed: PillarKey[]
   collapsedRules: string[]
-  contaminants: string[]
+  contaminantCounts: Record<string, number>
   chronicle: ChronicleEntry[]
   proclamationsThisEra: number
   instances: CanvasInstance[]
@@ -215,7 +215,7 @@ function createPlayState(opts?: {
       shards: DEMO_SAVE.shards,
       collapsed,
       collapsedRules: demoCollapsedRules(),
-      contaminants: [...DEMO_SAVE.contaminants],
+      contaminantCounts: { ...DEMO_SAVE.contaminantCounts },
       chronicle: [
         entry(DEMO_SAVE.era, '붕괴된 세계의 기록을 열람한다.'),
         entry(3, 'QUANTITAS와 QUALITAS가 반납되었다.'),
@@ -252,7 +252,7 @@ function createPlayState(opts?: {
     shards: 0,
     collapsed: [],
     collapsedRules: [],
-    contaminants: [],
+    contaminantCounts: {},
     chronicle: [entry(1, '제1시대가 열린다. 네 기둥 아래 첫 개념이 놓인다.')],
     proclamationsThisEra: 0,
     instances: seedInstances(concepts),
@@ -279,14 +279,20 @@ function titleState() {
   }
 }
 
+function activeContaminants(counts: Record<string, number>): string[] {
+  return Object.entries(counts)
+    .filter(([, n]) => n >= 3)
+    .map(([k]) => k)
+}
+
 function worldOf(s: {
   collapsed: PillarKey[]
-  contaminants: string[]
+  contaminantCounts: Record<string, number>
   era: number
 }): WorldState {
   return {
     collapsed: s.collapsed,
-    contaminants: s.contaminants,
+    contaminants: activeContaminants(s.contaminantCounts),
     era: s.era,
   }
 }
@@ -603,16 +609,9 @@ function resolveSlot(
     : cur.discoveredIds
 
   let coherence = cur.coherence
-  let contaminants = cur.contaminants
+  let contaminantCounts = cur.contaminantCounts
   if (isDiscovery && result.deleted) {
     coherence = Math.min(100, coherence + 3)
-  }
-  if (
-    isDiscovery &&
-    result.contaminant &&
-    !contaminants.includes(result.contaminant)
-  ) {
-    contaminants = [...contaminants, result.contaminant]
   }
 
   const { [slotId]: _gone, ...restPending } = cur.pending
@@ -638,13 +637,26 @@ function resolveSlot(
     ]
   }
 
+  if (isDiscovery && result.contaminant) {
+    const key = result.contaminant
+    const prev = contaminantCounts[key] ?? 0
+    const next = prev + 1
+    contaminantCounts = { ...contaminantCounts, [key]: next }
+    if (prev < 3 && next >= 3) {
+      chronicle = [
+        ...chronicle,
+        entry(cur.era, `이 세계는 이제 ${key}에 감염되었다.`),
+      ]
+    }
+  }
+
   const shardGain = isDiscovery && !result.deleted ? 1 : 0
 
   useGameStore.setState({
     concepts,
     discoveredIds,
     coherence,
-    contaminants,
+    contaminantCounts,
     shards: cur.shards + shardGain,
     pending: restPending,
     codex,

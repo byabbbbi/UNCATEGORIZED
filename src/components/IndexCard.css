@@ -52,8 +52,8 @@
 
 .index-card.is-deleted {
   background: var(--void);
-  color: #666;
-  border-color: #333;
+  color: var(--ink-dim);
+  border-color: color-mix(in srgb, var(--ink) 35%, var(--void));
 }
 
 .index-card.is-deleted .index-card__emoji {
