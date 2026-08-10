@@ -38,6 +38,13 @@
   cursor: grabbing;
 }
 
+.drawer__chip.is-deleted {
+  background: var(--void);
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .drawer__chip span:first-child {
   font-size: 22px;
   line-height: 1;
@@ -56,15 +63,45 @@
   position: relative;
   width: 64px;
   appearance: none;
-  border: 1px solid var(--rule);
-  background: var(--form-light);
-  font-size: 28px;
+  border: 1.5px solid var(--rule);
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--form-dark),
+      var(--form-dark) 5px,
+      var(--form) 5px,
+      var(--form) 10px
+    );
   border-radius: 3px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.drawer__vault-back {
+  font-size: 22px;
+  color: var(--ink-dim);
+  opacity: 0.7;
+}
+
+.drawer__vault-wax {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--seal);
+  background: color-mix(in srgb, var(--seal) 35%, var(--form));
+  bottom: 8px;
+  right: 8px;
 }
 
 .drawer__vault.is-ready {
   border-color: var(--gold);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
+}
+
+.drawer__vault.is-ready .drawer__vault-wax {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 40%, var(--form));
 }
 
 .drawer__pulse {

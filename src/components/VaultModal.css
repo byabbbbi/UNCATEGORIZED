@@ -60,7 +60,24 @@
   perspective: 600px;
 }
 
+.vault__stage.is-ink {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.vault__stage.is-seal {
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--seal) 22%, transparent);
+}
+
+.vault__stage.is-carbon {
+  box-shadow: inset 0 0 28px color-mix(in srgb, var(--carbon) 28%, transparent);
+}
+
+.vault__stage.is-gold {
+  box-shadow: inset 0 0 32px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+
 .vault__card-back {
+  position: relative;
   width: var(--card-w);
   height: var(--card-h);
   border: 1px solid var(--rule);
@@ -79,12 +96,36 @@
   border-radius: 3px;
 }
 
+.vault__wax {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--seal);
+  background: color-mix(in srgb, var(--seal) 40%, var(--form));
+  bottom: 10px;
+  right: 10px;
+}
+
+.vault__face {
+  position: relative;
+}
+
 .vault__grade {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   text-align: center;
-  font-family: var(--font-data);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.vault__grade-latin {
+  font-family: var(--font-latin);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   color: var(--gold);
 }
 
@@ -117,4 +158,15 @@
 .vault__pull:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+@keyframes ring-out {
+  from {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
 }

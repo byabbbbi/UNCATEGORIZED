@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
 import { IndexCard } from './IndexCard'
+import { GACHA_KO, GACHA_LATIN } from '../data/gachaPool'
 import type { PillarKey } from '../types'
 import './VaultModal.css'
 
@@ -25,6 +26,15 @@ export function VaultModal() {
     ? concepts.find((c) => c.id === reveal.conceptId)
     : null
 
+  const gradeGlow =
+    reveal?.grade === 'uncategorized'
+      ? 'is-gold'
+      : reveal?.grade === 'injudicable'
+        ? 'is-carbon'
+        : reveal?.grade === 'suspended'
+          ? 'is-seal'
+          : 'is-ink'
+
   return (
     <AnimatePresence>
       {open && (
@@ -47,10 +57,10 @@ export function VaultModal() {
               </button>
             </header>
             <p className="vault__copy">
-              파편 10개로 개념 하나를 회수한다. 등급이 높을수록 개봉이 길다.
+              파편 10개로 개념 하나를 회수한다. 뜸이 길수록 등급이 높다.
             </p>
 
-            <div className="vault__stage">
+            <div className={`vault__stage${reveal ? ` ${gradeGlow}` : ''}`}>
               <AnimatePresence mode="wait">
                 {!reveal && (
                   <motion.div
@@ -58,18 +68,21 @@ export function VaultModal() {
                     className="vault__card-back"
                     initial={{ rotateY: 0 }}
                     exit={{ rotateY: 90, opacity: 0 }}
+                    transition={{ duration: 0.35 }}
                   >
+                    <span className="vault__wax" />
                     ❐
                   </motion.div>
                 )}
                 {reveal && revealed && (
                   <motion.div
                     key="face"
+                    className="vault__face"
                     initial={{ rotateY: -90, opacity: 0, scale: 0.85 }}
                     animate={{ rotateY: 0, opacity: 1, scale: 1 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20 }}
                   >
-                    {reveal.grade === 'unclassified' && (
+                    {reveal.grade === 'uncategorized' && (
                       <span className="vault__gold-ring" />
                     )}
                     <IndexCard
@@ -78,11 +91,12 @@ export function VaultModal() {
                       isDiscovery={reveal.grade !== 'registered'}
                     />
                     <p className="vault__grade">
-                      {reveal.grade === 'unclassified'
-                        ? '미분류'
-                        : reveal.grade === 'caution'
-                          ? '주의'
-                          : '등록됨'}
+                      <span className="vault__grade-latin">
+                        {GACHA_LATIN[reveal.grade]}
+                      </span>
+                      <span>
+                        {GACHA_KO[reveal.grade]}
+                      </span>
                     </p>
                   </motion.div>
                 )}
