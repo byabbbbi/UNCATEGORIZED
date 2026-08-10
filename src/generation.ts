@@ -58,8 +58,9 @@ export async function generate(
         narrative: hard.narrative,
         contagion: hard.contagion,
         pillar: hard.pillar,
-        contaminant: '',
-        chronicle: `${hard.name}이(가) 목록에 등재되었다.`,
+        contaminant: hard.contaminant ?? '',
+        chronicle:
+          hard.chronicle ?? `${hard.name}이(가) 목록에 등재되었다.`,
       }
     }
   }
@@ -77,7 +78,7 @@ export async function generate(
 
   // 4. API (프록시 경유)
   try {
-    const raw = await callProxy(buildMessages(a, b, w), 9000)
+    const raw = await callProxy(buildMessages(a, b, w), 6000)
     if (isRefusal(raw)) {
       const del = deletedConcept()
       await idbSet(key, del)
@@ -137,6 +138,8 @@ ${roll ? `오염 지시: 결과 이름에 '${roll}'을(를) 자연스럽게 섞�
 - plausibility: 그런데도 얼마나 그럴듯한가. 노골적으로 강해 보이려는 이름("무한","전능","신" 남발)은 반드시 낮게
 - pillar: 이 개념이 흔드는 범주 하나
 - 실존 국가·정치인·실존 인물 금지
+- 두 입력 이름을 그대로 이어붙이지 마라. "점토점토" 같은 결과는 실패로 간주한다
+- A와 B가 같은 개념이면, 반복이 아니라 그것이 쌓이거나 심화된 하나의 사물을 만들어라 (점토+점토=벽돌)
 
 [예시]
 입력 A: 빵집, B: 숫자
@@ -208,12 +211,26 @@ function deletedConcept(): GenResult {
 }
 
 /** 외부(데모 시드·가챠 변형)에서도 쓰는 폴백 생성기 */
+const SAME_FORMS = ['무리', '층', '더미', '군집', '연쇄', '심층']
+const JOIN_FORMS = [
+  (a: string, b: string) => `${a}의 ${b}`,
+  (a: string, b: string) => `${b} 속 ${a}`,
+  (a: string, b: string) => `${a}에서 난 ${b}`,
+  (a: string, b: string) => `${b}가 된 ${a}`,
+]
+
+function fallbackName(a: Concept, b: Concept, rnd: () => number): string {
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
+  if (a.name === b.name) return `${a.name} ${pick(SAME_FORMS)}`
+  return pick(JOIN_FORMS)(a.name, b.name)
+}
+
 export function fallbackGenerate(a: Concept, b: Concept, w: WorldState): GenResult {
   const seed = hashStr(pairKey(a.name, b.name))
   const rnd = mulberry32(seed)
   const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
 
-  let name = pick([`${a.name}${b.name}`, `${b.name} ${a.name}`, `${a.name}의 ${b.name}`])
+  let name = fallbackName(a, b, rnd)
 
   if (w.collapsed.includes('quality'))
     name = pick(['바삭한', '투명한', '매우 느린', '거대한', '접힌']) + ' ' + name

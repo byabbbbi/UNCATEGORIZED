@@ -29,3 +29,9 @@ GitHub Pages는 `gh-pages` 브랜치를 사용한다 (`base: /UNCATEGORIZED/`).
 node scripts/preload.mjs 80
 npm run deploy
 ```
+
+## Cloudflare 워커 메모 (수동)
+
+- `MODEL_ID`: 추론(reasoning/thinking) 모델 말고 **빠른 instruct** 계열로 둔다.
+- 워커 코드의 `max_tokens`는 **400 → 200**으로 줄인다. JSON 한 개면 충분하고 응답이 빨라진다.
+- 변수·코드 수정 후 워커 **Deploy** 필수. 확인: 워커 URL GET → `{"ok":true,"model":"...","key":"set"}`.
