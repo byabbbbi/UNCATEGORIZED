@@ -63,6 +63,14 @@
   color: var(--gold);
 }
 
+.topbar__shard-num {
+  display: inline-block;
+  font-family: var(--font-data);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 
 .topbar__actions {
   display: flex;

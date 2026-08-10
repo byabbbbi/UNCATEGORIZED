@@ -1,10 +1,43 @@
 .drawer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 8px;
   align-items: stretch;
   height: var(--drawer-h);
   padding-top: 8px;
+}
+
+.drawer.is-drop-target {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.drawer__rail-wrap {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.drawer__rail-wrap::before,
+.drawer__rail-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  width: 18px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.drawer__rail-wrap::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--form-dark), transparent);
+}
+
+.drawer__rail-wrap::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--form-dark), transparent);
 }
 
 .drawer__rail {
@@ -12,9 +45,29 @@
   gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
+  height: 100%;
   padding: 4px 2px 8px;
   border: 1px solid var(--rule);
   background: var(--form-dark);
+}
+
+.drawer__codex {
+  appearance: none;
+  min-width: 64px;
+  border: 1px solid var(--rule);
+  background: var(--form-light);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.drawer__codex:hover {
+  border-color: var(--ink-dim);
 }
 
 .drawer__chip {
@@ -40,7 +93,7 @@
 
 .drawer__chip.is-deleted {
   background: var(--void);
-  color: #666;
+  color: var(--ink-dim);
   cursor: not-allowed;
   opacity: 0.7;
 }

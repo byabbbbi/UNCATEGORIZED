@@ -60,6 +60,8 @@ export interface FxState {
   godLine: string | null
   inputLocked: boolean
   discoverPop: number
+  shardPop: number
+  drawerHighlight: boolean
   shardFlights: ShardFlight[]
 }
 

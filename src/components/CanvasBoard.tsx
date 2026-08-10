@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import {
   AnimatePresence,
+  animate,
   motion,
   useMotionValue,
 } from 'motion/react'
@@ -42,6 +43,11 @@ function ProcessingCard({ x, y }: { x: number; y: number }) {
   )
 }
 
+function pointOverDrawer(clientX: number, clientY: number) {
+  const el = document.elementFromPoint(clientX, clientY)
+  return !!el?.closest('.drawer')
+}
+
 function CanvasCard({
   instanceId,
   conceptId,
@@ -72,14 +78,23 @@ function CanvasCard({
   const setHoverConcept = useGameStore((s) => s.setHoverConcept)
   const handleDrop = useGameStore((s) => s.handleDrop)
   const setInstancePos = useGameStore((s) => s.setInstancePos)
+  const dismissInstance = useGameStore((s) => s.dismissInstance)
+  const setDrawerHighlight = useGameStore((s) => s.setDrawerHighlight)
   const boardRef = useRef<HTMLElement | null>(null)
+  const dragging = useRef(false)
 
   const mx = useMotionValue(x)
   const my = useMotionValue(y)
 
   useEffect(() => {
-    mx.set(x)
-    my.set(y)
+    if (dragging.current) return
+    const spring = { type: 'spring' as const, stiffness: 300, damping: 30 }
+    const ax = animate(mx, x, spring)
+    const ay = animate(my, y, spring)
+    return () => {
+      ax.stop()
+      ay.stop()
+    }
   }, [x, y, mx, my])
 
   if (!concept) return null
@@ -95,14 +110,26 @@ function CanvasCard({
       initial={revealDiscovery ? { scale: 0.7, opacity: 0 } : false}
       animate={{ scale: 1, opacity: 1, rotate: 0 }}
       transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-      onDragStart={() => sfx.pick()}
+      onDragStart={() => {
+        dragging.current = true
+        sfx.pick()
+      }}
       onPointerDown={() => {
         selectInstance(instanceId)
         setHoverConcept(conceptId)
         boardRef.current = document.querySelector('.canvas-board')
       }}
       onHoverStart={() => setHoverConcept(conceptId)}
-      onDragEnd={() => {
+      onDrag={(_, info) => {
+        setDrawerHighlight(pointOverDrawer(info.point.x, info.point.y))
+      }}
+      onDragEnd={(_, info) => {
+        dragging.current = false
+        setDrawerHighlight(false)
+        if (pointOverDrawer(info.point.x, info.point.y)) {
+          dismissInstance(instanceId)
+          return
+        }
         const board = boardRef.current ?? document.querySelector('.canvas-board')
         if (!board) return
         const nx = mx.get()

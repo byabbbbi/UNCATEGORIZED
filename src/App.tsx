@@ -5,6 +5,7 @@ import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
 import { VaultModal } from './components/VaultModal'
+import { CodexModal } from './components/CodexModal'
 import { TitleScreen } from './components/TitleScreen'
 import { EndingScreen } from './components/EndingScreen'
 import { ShardFlights } from './components/ShardFlights'
@@ -26,9 +27,13 @@ export default function App() {
   const muted = useGameStore((s) => s.muted)
   const collapsed = useGameStore((s) => s.collapsed)
   const fx = useGameStore((s) => s.fx)
+  const codexOpen = useGameStore((s) => s.codexOpen)
   const toggleMute = useGameStore((s) => s.toggleMute)
   const endEra = useGameStore((s) => s.endEra)
   const reset = useGameStore((s) => s.reset)
+  const tidyCanvas = useGameStore((s) => s.tidyCanvas)
+  const openCodex = useGameStore((s) => s.openCodex)
+  const closeCodex = useGameStore((s) => s.closeCodex)
 
   const discoveryCount = discoveredIds.length
 
@@ -44,6 +49,20 @@ export default function App() {
     window.addEventListener('pointerdown', unlock, { once: true })
     return () => window.removeEventListener('pointerdown', unlock)
   }, [])
+
+  useEffect(() => {
+    if (screen !== 'play') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      if (codexOpen) closeCodex()
+      else openCodex()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [screen, codexOpen, openCodex, closeCodex])
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -123,14 +142,26 @@ export default function App() {
             </label>
             <label>
               <span>파편</span>
-              <strong className="misreg">
+              <motion.strong
+                key={fx.shardPop}
+                className="misreg topbar__shard-num"
+                animate={
+                  fx.shardPop > 0 && !reduceMotion
+                    ? { scale: [1, 1.25, 1] }
+                    : { scale: 1 }
+                }
+                transition={{ duration: 0.22 }}
+              >
                 <AnimatedNumber value={shards} digits={0} />
-              </strong>
+              </motion.strong>
             </label>
           </div>
 
           <div className="topbar__actions">
             {message && <p className="topbar__msg misreg">{message}</p>}
+            <button type="button" className="linkish" onClick={tidyCanvas}>
+              정리
+            </button>
             <button type="button" className="linkish" onClick={endEra}>
               시대 마감
             </button>
@@ -159,6 +190,7 @@ export default function App() {
       </motion.div>
 
       <VaultModal />
+      <CodexModal />
       {screen === 'ending' && <EndingScreen />}
       <DebugBadge />
     </div>

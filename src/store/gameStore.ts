@@ -89,6 +89,8 @@ const emptyFx = (): FxState => ({
   godLine: null,
   inputLocked: false,
   discoverPop: 0,
+  shardPop: 0,
+  drawerHighlight: false,
   shardFlights: [],
 })
 
@@ -124,6 +126,7 @@ export interface GameStore {
   muted: boolean
   fx: FxState
   stats: GameStats
+  codexOpen: boolean
 
   startFresh: () => void
   startDemo: () => void
@@ -134,6 +137,11 @@ export interface GameStore {
   setTargetPillar: (key: PillarKey | null) => void
   spawnFromDrawer: (conceptId: string, x: number, y: number) => void
   setInstancePos: (instanceId: string, x: number, y: number) => void
+  dismissInstance: (instanceId: string) => void
+  setDrawerHighlight: (on: boolean) => void
+  tidyCanvas: () => void
+  openCodex: () => void
+  closeCodex: () => void
   handleDrop: (
     instanceId: string,
     center: { x: number; y: number },
@@ -171,6 +179,11 @@ function createPlayState(opts?: {
   | 'setTargetPillar'
   | 'spawnFromDrawer'
   | 'setInstancePos'
+  | 'dismissInstance'
+  | 'setDrawerHighlight'
+  | 'tidyCanvas'
+  | 'openCodex'
+  | 'closeCodex'
   | 'handleDrop'
   | 'endEra'
   | 'openVault'
@@ -220,6 +233,7 @@ function createPlayState(opts?: {
       muted: false,
       fx: emptyFx(),
       stats: { discoveries: concepts.length, proclamations: 8, resignations: 2 },
+      codexOpen: false,
     }
   }
 
@@ -252,6 +266,7 @@ function createPlayState(opts?: {
     muted: false,
     fx: emptyFx(),
     stats: { discoveries: 0, proclamations: 0, resignations: 0 },
+    codexOpen: false,
   }
 }
 
@@ -623,11 +638,14 @@ function resolveSlot(
     ]
   }
 
+  const shardGain = isDiscovery && !result.deleted ? 1 : 0
+
   useGameStore.setState({
     concepts,
     discoveredIds,
     coherence,
     contaminants,
+    shards: cur.shards + shardGain,
     pending: restPending,
     codex,
     stats: isDiscovery
@@ -658,6 +676,10 @@ function resolveSlot(
           ? '검열된 개념이 기록되었다'
           : `조합 성공: ${a.emoji}${b.emoji} → ${result.emoji} ${result.name}`
         : `이미 발견한 개념: ${concept.emoji} ${concept.name}`,
+    fx:
+      shardGain > 0
+        ? { ...cur.fx, shardPop: cur.fx.shardPop + 1 }
+        : cur.fx,
   })
 
   if (isRerecord || isDiscovery) sfx.discover()
@@ -796,6 +818,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
     }))
   },
+
+  dismissInstance: (instanceId) => {
+    const s = get()
+    if (s.fx.inputLocked) return
+    set({
+      instances: s.instances.filter((i) => i.instanceId !== instanceId),
+      selectedInstanceId:
+        s.selectedInstanceId === instanceId ? null : s.selectedInstanceId,
+      fx: { ...s.fx, drawerHighlight: false },
+      message: '카드를 서랍으로 치웠다',
+    })
+    sfx.drop()
+  },
+
+  setDrawerHighlight: (on) =>
+    set((s) =>
+      s.fx.drawerHighlight === on
+        ? s
+        : { fx: { ...s.fx, drawerHighlight: on } },
+    ),
+
+  tidyCanvas: () => {
+    const s = get()
+    if (s.fx.inputLocked || s.screen !== 'play') return
+    const GAP = 110
+    let col = 0
+    let row = 0
+    const maxCols = 6
+    const next = s.instances.map((inst) => {
+      if (inst.processing) return inst
+      const x = 16 + col * GAP
+      const y = 28 + row * GAP
+      col += 1
+      if (col >= maxCols) {
+        col = 0
+        row += 1
+      }
+      return { ...inst, x, y }
+    })
+    set({ instances: next, message: '캔버스를 정리했다' })
+  },
+
+  openCodex: () => {
+    if (get().fx.inputLocked) return
+    set({ codexOpen: true })
+  },
+
+  closeCodex: () => set({ codexOpen: false }),
 
   handleDrop: (instanceId, center, altar) => {
     const state = get()
