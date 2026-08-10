@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
 import { VaultModal } from './components/VaultModal'
+import { TitleScreen } from './components/TitleScreen'
+import { EndingScreen } from './components/EndingScreen'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { useGameStore } from './store/gameStore'
 import { unlockAudio } from './sfx'
@@ -12,26 +14,25 @@ import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 
 export default function App() {
+  const screen = useGameStore((s) => s.screen)
   const coherence = useGameStore((s) => s.coherence)
   const era = useGameStore((s) => s.era)
   const shards = useGameStore((s) => s.shards)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const message = useGameStore((s) => s.message)
   const muted = useGameStore((s) => s.muted)
-  const pillars = useGameStore((s) => s.pillars)
+  const collapsed = useGameStore((s) => s.collapsed)
   const fx = useGameStore((s) => s.fx)
   const toggleMute = useGameStore((s) => s.toggleMute)
   const endEra = useGameStore((s) => s.endEra)
   const reset = useGameStore((s) => s.reset)
 
-  const collapsed = pillars.filter((p) => p.stability <= 0).length
-
   useEffect(() => {
     document.documentElement.style.setProperty(
       '--misreg',
-      `${collapsed * 0.9}px`,
+      `${collapsed.length * 0.9}px`,
     )
-  }, [collapsed])
+  }, [collapsed.length])
 
   useEffect(() => {
     const unlock = () => unlockAudio()
@@ -43,12 +44,34 @@ export default function App() {
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  if (screen === 'title') {
+    return (
+      <div onPointerDown={() => unlockAudio()}>
+        <TitleScreen />
+      </div>
+    )
+  }
+
   return (
     <div
       className={`app${fx.unclassifiedFx ? ' is-voiding' : ''}`}
       onPointerDown={() => unlockAudio()}
     >
       {fx.whiteFlash && <div className="flash-white" />}
+
+      <AnimatePresence>
+        {fx.godLine && (
+          <motion.div
+            className="god-line"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            {fx.godLine}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.div
         className="app__shell"
@@ -117,6 +140,7 @@ export default function App() {
       </motion.div>
 
       <VaultModal />
+      {screen === 'ending' && <EndingScreen />}
     </div>
   )
 }
