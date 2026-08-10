@@ -1,0 +1,96 @@
+.drawer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+  height: var(--drawer-h);
+  padding-top: 8px;
+}
+
+.drawer__rail {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 8px;
+  border: 1px solid var(--rule);
+  background: var(--form-dark);
+}
+
+.drawer__chip {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--form-light);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 52px;
+  font-family: var(--font-body);
+  cursor: grab;
+}
+
+.drawer__chip:active {
+  cursor: grabbing;
+}
+
+.drawer__chip span:first-child {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.drawer__chip-name {
+  font-size: 10px;
+  color: var(--ink-dim);
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__vault {
+  position: relative;
+  width: 64px;
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--form-light);
+  font-size: 28px;
+  border-radius: 3px;
+}
+
+.drawer__vault.is-ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
+}
+
+.drawer__pulse {
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  border: 1px solid var(--gold);
+  animation: vault-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes vault-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer__pulse {
+    animation: none;
+    opacity: 0.6;
+  }
+}

@@ -1,0 +1,100 @@
+.index-card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  background: var(--form-light);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  box-shadow:
+    0 1px 0 var(--form-dark),
+    0 2px 6px rgba(31, 38, 33, 0.12);
+  font-family: var(--font-body);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 18px 8px 10px;
+  user-select: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.index-card:active {
+  cursor: grabbing;
+}
+
+.index-card.is-selected {
+  outline: 2px solid var(--seal);
+  outline-offset: 1px;
+}
+
+.index-card.is-discovery {
+  border-color: var(--gold);
+}
+
+.index-card.is-dimmed {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.index-card.is-unjudged {
+  background: color-mix(in srgb, var(--form-light) 88%, var(--carbon));
+}
+
+.index-card__stamp {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-family: var(--font-decree);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--seal);
+  opacity: 0.55;
+  transform: rotate(12deg);
+  border: 1px solid color-mix(in srgb, var(--seal) 55%, transparent);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+}
+
+.index-card__stamp.is-void {
+  width: auto;
+  height: auto;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  opacity: 0.35;
+  transform: rotate(-8deg);
+  white-space: nowrap;
+}
+
+.index-card__emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.index-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+  max-height: 2.4em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: keep-all;
+}
+
+.index-card__star {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-size: 10px;
+  color: var(--gold);
+}

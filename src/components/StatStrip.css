@@ -1,0 +1,21 @@
+.stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  min-height: 28px;
+  padding: 6px 2px 0;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  border-top: 1px solid var(--rule);
+}
+
+.stat-strip.is-empty {
+  color: var(--ink-dim);
+}
+
+.stat-strip__arrow {
+  color: var(--seal);
+}
