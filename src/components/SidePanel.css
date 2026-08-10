@@ -100,12 +100,24 @@
   margin-bottom: 5px;
 }
 
-.pillar-row__meta strong {
-  font-family: var(--font-decree);
+.pillar-row__latin {
+  font-family: var(--font-latin);
   font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
-.pillar-row__meta span {
+.pillar-row__ko {
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-dim);
+}
+
+.pillar-row__blocks {
+  font-family: var(--font-data);
+  font-size: 10px;
+  letter-spacing: 0.02em;
   color: var(--ink-dim);
 }
 
@@ -123,7 +135,23 @@
 
 .pillar-row__fill {
   height: 100%;
+  background: var(--ink);
+}
+
+.pillar-row.is-sophistry .pillar-row__fill {
   background: var(--seal);
+}
+
+.pillar-row.is-resign .pillar-row__track {
+  opacity: 0.35;
+}
+
+.pillar-row.is-resign .pillar-row__fill {
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.pillar-row.is-collapsed {
+  opacity: 0.4;
 }
 
 .side-block--chronicle {

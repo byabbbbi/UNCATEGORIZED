@@ -1,5 +1,5 @@
 import { calcD, calcCoherenceLoss } from '../game/formulas'
-import { PILLAR_GODS } from '../data/initial'
+import { PILLAR_KO, PILLAR_LATIN } from '../data/initial'
 import { useGameStore } from '../store/gameStore'
 import { sealOf } from '../types'
 import './StatStrip.css'
@@ -22,9 +22,17 @@ export function StatStrip() {
     )
   }
 
+  if (concept.deleted) {
+    return (
+      <div className="stat-strip">
+        <span>검열됨 — 조합·선포 불가 · 정합성 +3 (획득 시)</span>
+      </div>
+    )
+  }
+
   const D = calcD(concept.chaos, concept.plausibility)
   const loss = calcCoherenceLoss(concept.chaos, concept.plausibility)
-  const god = PILLAR_GODS[sealOf(concept)]
+  const pillar = sealOf(concept)
 
   return (
     <div className="stat-strip">
@@ -33,7 +41,7 @@ export function StatStrip() {
         {concept.depth}
       </span>
       <span className="stat-strip__arrow">
-        → {god} · 정합성 −{loss.toFixed(1)}
+        → {PILLAR_LATIN[pillar]} · {PILLAR_KO[pillar]} · 정합성 −{loss.toFixed(1)}
       </span>
     </div>
   )

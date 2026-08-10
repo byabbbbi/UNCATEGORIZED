@@ -6,10 +6,11 @@ import { useGameStore } from '../store/gameStore'
 import {
   MAX_ERA,
   MAX_PROCLAMATIONS_PER_ERA,
-  PILLAR_GODS,
-  PILLAR_LABELS,
+  PILLAR_KO,
+  PILLAR_LATIN,
 } from '../data/initial'
 import type { PillarKey } from '../types'
+import { pillarPhase } from '../types'
 import './SidePanel.css'
 
 export function SidePanel() {
@@ -100,6 +101,11 @@ export function SidePanel() {
   )
 }
 
+function blocks(stability: number): string {
+  const n = Math.round(Math.max(0, Math.min(100, stability)) / 25)
+  return '▮'.repeat(n) + '▯'.repeat(4 - n)
+}
+
 function PillarRow({
   pillarKey,
   stability,
@@ -112,17 +118,23 @@ function PillarRow({
   onSelect: () => void
 }) {
   const collapsed = stability <= 0
+  const phase = pillarPhase(stability)
   return (
     <li>
       <button
         type="button"
-        className={`pillar-row${selected ? ' is-selected' : ''}${collapsed ? ' is-collapsed' : ''}`}
+        className={`pillar-row${selected ? ' is-selected' : ''}${collapsed ? ' is-collapsed' : ''} is-${phase}`}
         disabled={collapsed}
         onClick={onSelect}
       >
         <div className="pillar-row__meta">
-          <strong className="misreg">{PILLAR_GODS[pillarKey].replace('의 신', '')}</strong>
-          <span>{PILLAR_LABELS[pillarKey]}</span>
+          <strong className="pillar-row__latin misreg">
+            {PILLAR_LATIN[pillarKey]}
+            <span className="pillar-row__ko"> · {PILLAR_KO[pillarKey]}</span>
+          </strong>
+          <span className="pillar-row__blocks" aria-hidden>
+            {blocks(stability)}
+          </span>
           <em>
             <AnimatedNumber value={stability} digits={0} />
           </em>

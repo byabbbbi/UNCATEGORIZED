@@ -33,6 +33,7 @@ function CanvasCard({
   reject,
   combining,
   mergeTo,
+  locked,
 }: {
   instanceId: string
   conceptId: string
@@ -44,6 +45,7 @@ function CanvasCard({
   reject: boolean
   combining: boolean
   mergeTo: { x: number; y: number } | null
+  locked: boolean
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -73,7 +75,7 @@ function CanvasCard({
     <motion.div
       className="canvas-card"
       style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: selected ? 20 : 5 }}
-      drag={!combining}
+      drag={!combining && !locked && !concept.deleted}
       dragMomentum={false}
       dragElastic={0.08}
       whileDrag={{ scale: 1.06, rotate: 1.5, zIndex: 100 }}
@@ -97,13 +99,12 @@ function CanvasCard({
       onDragEnd={() => {
         const board = boardRef.current ?? document.querySelector('.canvas-board')
         if (!board) return
-        const rect = board.getBoundingClientRect()
         const nx = mx.get()
         const ny = my.get()
         const center = { x: nx + CARD_W / 2, y: ny + CARD_H / 2 }
         const altar = {
-          x: rect.width / 2,
-          y: rect.height - 72,
+          x: board.getBoundingClientRect().width / 2,
+          y: board.getBoundingClientRect().height - 72,
         }
         setInstancePos(instanceId, nx, ny)
         handleDrop(instanceId, center, altar)
@@ -143,6 +144,7 @@ export function CanvasBoard() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
+        if (fx.inputLocked) return
         const conceptId = e.dataTransfer.getData('text/concept-id')
         if (!conceptId || !boardRef.current) return
         const rect = boardRef.current.getBoundingClientRect()
@@ -161,7 +163,7 @@ export function CanvasBoard() {
         }
         transition={{ duration: 0.35 }}
       >
-        <span className="altar__label misreg">祭壇</span>
+        <span className="altar__label">ARA</span>
         <span className="altar__sub">선포</span>
       </motion.div>
 
@@ -189,13 +191,17 @@ export function CanvasBoard() {
               reject={fx.rejectInstanceId === inst.instanceId}
               combining={!!inCombine}
               mergeTo={mergeTo}
+              locked={fx.inputLocked}
             />
           )
         })}
       </AnimatePresence>
 
       <AnimatePresence>
-        {fx.combining && (
+        {fx.combining?.loading && (
+          <CardBackLoader key="loader" x={fx.combining.x} y={fx.combining.y} />
+        )}
+        {fx.combining && !fx.combining.loading && fx.combining.resultConceptId && (
           <ResultBurst
             key="burst"
             x={fx.combining.x}
@@ -207,6 +213,26 @@ export function CanvasBoard() {
         )}
       </AnimatePresence>
     </section>
+  )
+}
+
+function CardBackLoader({ x, y }: { x: number; y: number }) {
+  return (
+    <motion.div
+      className="card-back-loader"
+      style={{ left: x, top: y }}
+      initial={{ opacity: 0, rotateY: 0 }}
+      animate={{ opacity: 1, rotateY: 360 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        opacity: { duration: 0.2 },
+        rotateY: { duration: 2.4, repeat: Infinity, ease: 'linear' },
+      }}
+    >
+      <span className="card-back-loader__wax" aria-hidden>
+        ❐
+      </span>
+    </motion.div>
   )
 }
 
@@ -232,7 +258,7 @@ function ResultBurst({
       initial={{ scale: 0.4, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 18, delay: 0.31 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 18 }}
     >
       {isDiscovery && <span className="result-burst__ring" />}
       <IndexCard concept={concept} pillarsAlive={alive} isDiscovery={isDiscovery} />

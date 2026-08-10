@@ -33,7 +33,7 @@ export function IndexCard({
 }: Props) {
   const seal = sealOf(concept)
   const alive = pillarsAlive[seal]
-  const glyph = alive ? SEAL_GLYPH[seal] : '判'
+  const glyph = concept.deleted ? '██' : alive ? SEAL_GLYPH[seal] : '✕'
 
   return (
     <motion.div
@@ -42,7 +42,8 @@ export function IndexCard({
         'misreg',
         selected ? 'is-selected' : '',
         isDiscovery ? 'is-discovery' : '',
-        !alive ? 'is-unjudged' : '',
+        !alive || concept.deleted ? 'is-unjudged' : '',
+        concept.deleted ? 'is-deleted' : '',
         dimmed ? 'is-dimmed' : '',
         className,
       ]
@@ -60,14 +61,14 @@ export function IndexCard({
       transition={reject ? { duration: 0.24 } : undefined}
       whileTap={{ scale: 0.96 }}
     >
-      <span className={`index-card__stamp${alive ? '' : ' is-void'}`} aria-hidden>
-        {alive ? glyph : '판정불가'}
+      <span className={`seal${!alive || concept.deleted ? ' is-void' : ''}`} aria-hidden>
+        {glyph}
       </span>
       <span className="index-card__emoji" aria-hidden>
         {concept.emoji}
       </span>
       <span className="index-card__name">{concept.name}</span>
-      {isDiscovery && (
+      {isDiscovery && !concept.deleted && (
         <span className="index-card__star" aria-hidden>
           ✦
         </span>

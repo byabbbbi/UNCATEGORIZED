@@ -48,9 +48,7 @@
   translate: -50% 0;
   border-radius: 50%;
   border: 2px dashed color-mix(in srgb, var(--seal) 55%, var(--rule));
-  background:
-    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--seal) 12%, transparent), transparent 62%),
-    var(--form-dark);
+  background: var(--form-dark);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,17 +59,52 @@
 }
 
 .altar__label {
-  font-family: var(--font-decree);
-  font-size: 18px;
+  font-family: var(--font-latin);
+  font-size: 14px;
+  font-weight: 600;
   color: var(--seal);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .altar__sub {
-  font-family: var(--font-data);
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-family: var(--font-decree);
+  font-size: 12px;
+  letter-spacing: 0.08em;
   color: var(--ink-dim);
+}
+
+.card-back-loader {
+  position: absolute;
+  z-index: 55;
+  width: var(--card-w);
+  height: var(--card-h);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--form-dark),
+      var(--form-dark) 6px,
+      var(--form) 6px,
+      var(--form) 12px
+    );
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.card-back-loader__wax {
+  font-size: 28px;
+  color: var(--seal);
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-back-loader {
+    animation: none;
+  }
 }
 
 .altar.is-stamping {

@@ -1,4 +1,4 @@
-import type { Concept, Pillar } from '../types'
+import type { Concept, Pillar, PillarKey } from '../types'
 
 export const INITIAL_CONCEPTS: Concept[] = [
   {
@@ -10,6 +10,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     narrative: 30,
     contagion: 25,
     depth: 0,
+    pillar: 'substance',
   },
   {
     id: 'spark',
@@ -20,6 +21,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     narrative: 40,
     contagion: 35,
     depth: 0,
+    pillar: 'quality',
   },
   {
     id: 'clay',
@@ -30,6 +32,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     narrative: 35,
     contagion: 15,
     depth: 0,
+    pillar: 'substance',
   },
   {
     id: 'tide',
@@ -40,6 +43,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     narrative: 45,
     contagion: 30,
     depth: 0,
+    pillar: 'time',
   },
 ]
 
@@ -50,26 +54,30 @@ export const INITIAL_PILLARS: Pillar[] = [
   { key: 'time', stability: 100 },
 ]
 
-export const PILLAR_LABELS: Record<Pillar['key'], string> = {
-  substance: '실체',
-  quantity: '양',
-  quality: '질',
-  time: '시간',
+/** 라틴 대문자 — UI 기둥·도장·제단·타이틀 전용 */
+export const PILLAR_LATIN: Record<PillarKey, string> = {
+  substance: 'SUBSTANTIA',
+  quantity: 'QUANTITAS',
+  quality: 'QUALITAS',
+  time: 'TEMPUS',
 }
 
-export const PILLAR_GODS: Record<Pillar['key'], string> = {
+/** 한국어 병기 */
+export const PILLAR_KO: Record<PillarKey, string> = {
+  substance: '실재',
+  quantity: '측정',
+  quality: '본질',
+  time: '영겁',
+}
+
+/** @deprecated PILLAR_KO 사용. 호환용 별칭 */
+export const PILLAR_LABELS = PILLAR_KO
+
+export const PILLAR_GODS: Record<PillarKey, string> = {
   substance: '실재의 신',
   quantity: '측정의 신',
   quality: '본질의 신',
   time: '영겁의 신',
-}
-
-/** 기둥 붕괴 시 collapsedRules에 들어가는 생성 규칙 */
-export const PILLAR_RULES: Record<Pillar['key'], string> = {
-  substance: '실체가 부서진다 — 이름 없는 형태가 세계를 채운다.',
-  quantity: '양적 질서가 붕괴한다 — 하나와 무한이 구별되지 않는다.',
-  quality: '질이 뒤집힌다 — 아름답고 추한 것이 같은 말을 쓴다.',
-  time: '시간이 풀린다 — 전후가 동시에 선포된다.',
 }
 
 export const MAX_PROCLAMATIONS_PER_ERA = 3

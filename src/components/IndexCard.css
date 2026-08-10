@@ -43,34 +43,37 @@
   background: color-mix(in srgb, var(--form-light) 88%, var(--carbon));
 }
 
-.index-card__stamp {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  font-family: var(--font-decree);
-  font-size: 13px;
-  line-height: 1;
-  color: var(--seal);
-  opacity: 0.55;
-  transform: rotate(12deg);
-  border: 1px solid color-mix(in srgb, var(--seal) 55%, transparent);
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
+.index-card.is-deleted {
+  background: var(--void);
+  color: #666;
+  border-color: #333;
 }
 
-.index-card__stamp.is-void {
-  width: auto;
-  height: auto;
-  padding: 2px 4px;
-  border-radius: 2px;
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  opacity: 0.35;
+.index-card.is-deleted .index-card__emoji {
+  filter: grayscale(1);
+}
+
+.seal {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--seal);
+  color: var(--seal);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-latin);
+  font-style: italic;
+  font-size: 11px;
+  opacity: 0.7;
   transform: rotate(-8deg);
-  white-space: nowrap;
+  line-height: 1;
+}
+
+.seal.is-void {
+  opacity: 0.35;
 }
 
 .index-card__emoji {
