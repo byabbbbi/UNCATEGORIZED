@@ -1,192 +1,47 @@
-import type { Concept } from '../types'
+import type { Concept, PillarKey } from '../types'
 
-/** 조합 키는 알파벳 순 정렬된 id 쌍 (`a+b`) */
-export type ComboTable = Record<string, Concept>
+/** 조합 키는 이름 알파벳/문자열 순 정렬 (`a+b`) — generation.pairKey와 동일 */
+export type HardTable = Record<
+  string,
+  Omit<Concept, 'id' | 'depth'> & { depth?: number }
+>
 
 function pairKey(a: string, b: string): string {
   return [a, b].sort().join('+')
 }
 
-const TABLE: ComboTable = {
-  [pairKey('void', 'spark')]: {
-    id: 'chaos',
-    name: '혼돈',
-    emoji: '🌀',
-    chaos: 72,
-    plausibility: 28,
-    narrative: 40,
-    contagion: 55,
-    depth: 1,
-  },
-  [pairKey('spark', 'clay')]: {
-    id: 'life',
-    name: '생명',
-    emoji: '🌱',
-    chaos: 35,
-    plausibility: 60,
-    narrative: 70,
-    contagion: 40,
-    depth: 1,
-  },
-  [pairKey('void', 'clay')]: {
-    id: 'grave',
-    name: '무덤',
-    emoji: '🪦',
-    chaos: 45,
-    plausibility: 50,
-    narrative: 55,
-    contagion: 30,
-    depth: 1,
-  },
-  [pairKey('tide', 'spark')]: {
-    id: 'steam',
-    name: '증기',
-    emoji: '💨',
-    chaos: 40,
-    plausibility: 65,
-    narrative: 35,
-    contagion: 45,
-    depth: 1,
-  },
-  [pairKey('tide', 'clay')]: {
-    id: 'mire',
-    name: '늪',
-    emoji: '🫧',
-    chaos: 38,
-    plausibility: 58,
-    narrative: 42,
-    contagion: 50,
-    depth: 1,
-  },
-  [pairKey('tide', 'void')]: {
-    id: 'abyss',
-    name: '심연',
-    emoji: '🌊',
-    chaos: 68,
-    plausibility: 32,
-    narrative: 60,
-    contagion: 48,
-    depth: 1,
-  },
-  [pairKey('chaos', 'life')]: {
-    id: 'mutation',
-    name: '변이',
-    emoji: '🧬',
-    chaos: 80,
-    plausibility: 25,
-    narrative: 65,
-    contagion: 75,
-    depth: 2,
-  },
-  [pairKey('life', 'grave')]: {
-    id: 'cycle',
-    name: '윤회',
-    emoji: '♻️',
-    chaos: 50,
-    plausibility: 55,
-    narrative: 85,
-    contagion: 60,
-    depth: 2,
-  },
-  [pairKey('chaos', 'abyss')]: {
-    id: 'unmake',
-    name: '해체',
-    emoji: '💥',
-    chaos: 90,
-    plausibility: 15,
-    narrative: 70,
-    contagion: 80,
-    depth: 2,
-  },
-  [pairKey('steam', 'life')]: {
-    id: 'breath',
-    name: '숨결',
-    emoji: '🌬️',
-    chaos: 30,
-    plausibility: 70,
-    narrative: 75,
-    contagion: 35,
-    depth: 2,
-  },
-  [pairKey('mire', 'grave')]: {
-    id: 'fossils',
-    name: '화석',
-    emoji: '🦴',
-    chaos: 25,
-    plausibility: 80,
-    narrative: 50,
-    contagion: 20,
-    depth: 2,
-  },
-  [pairKey('mutation', 'cycle')]: {
-    id: 'godseed',
-    name: '신종',
-    emoji: '✨',
-    chaos: 75,
-    plausibility: 40,
-    narrative: 90,
-    contagion: 70,
-    depth: 3,
-  },
-  [pairKey('unmake', 'breath')]: {
-    id: 'silence',
-    name: '침묵',
-    emoji: '🤫',
-    chaos: 55,
-    plausibility: 45,
-    narrative: 80,
-    contagion: 65,
-    depth: 3,
-  },
-  [pairKey('fossils', 'cycle')]: {
-    id: 'memory',
-    name: '기억',
-    emoji: '📜',
-    chaos: 20,
-    plausibility: 75,
-    narrative: 95,
-    contagion: 40,
-    depth: 3,
-  },
-  [pairKey('godseed', 'silence')]: {
-    id: 'doctrine',
-    name: '교리',
-    emoji: '📿',
-    chaos: 60,
-    plausibility: 50,
-    narrative: 88,
-    contagion: 85,
-    depth: 4,
-  },
-  [pairKey('memory', 'unmake')]: {
-    id: 'heresy',
-    name: '이단',
-    emoji: '🕯️',
-    chaos: 85,
-    plausibility: 30,
-    narrative: 92,
-    contagion: 90,
-    depth: 4,
-  },
-  [pairKey('doctrine', 'heresy')]: {
-    id: 'schism',
-    name: '분열',
-    emoji: '⚔️',
-    chaos: 95,
-    plausibility: 20,
-    narrative: 98,
-    contagion: 95,
-    depth: 5,
-  },
+function hard(
+  name: string,
+  emoji: string,
+  chaos: number,
+  plausibility: number,
+  narrative: number,
+  contagion: number,
+  pillar: PillarKey,
+  depth = 1,
+): HardTable[string] {
+  return { name, emoji, chaos, plausibility, narrative, contagion, pillar, depth }
 }
 
-export function lookupCombo(idA: string, idB: string): Concept | null {
-  if (idA === idB) return null
-  return TABLE[pairKey(idA, idB)] ?? null
+/** 깨끗한 세계 전용 하드코딩 조합 (이름 기준) */
+export const HARD_TABLE: HardTable = {
+  [pairKey('공허', '불꽃')]: hard('혼돈', '🌀', 72, 28, 40, 55, 'quality'),
+  [pairKey('불꽃', '점토')]: hard('생명', '🌱', 35, 60, 70, 40, 'substance'),
+  [pairKey('공허', '점토')]: hard('무덤', '🪦', 45, 50, 55, 30, 'substance'),
+  [pairKey('조류', '불꽃')]: hard('증기', '💨', 40, 65, 35, 45, 'quality'),
+  [pairKey('조류', '점토')]: hard('늪', '🫧', 38, 58, 42, 50, 'time'),
+  [pairKey('조류', '공허')]: hard('심연', '🌊', 68, 32, 60, 48, 'substance'),
+  [pairKey('혼돈', '생명')]: hard('변이', '🧬', 80, 25, 65, 75, 'quality', 2),
+  [pairKey('생명', '무덤')]: hard('윤회', '♻️', 50, 55, 85, 60, 'time', 2),
+  [pairKey('혼돈', '심연')]: hard('해체', '💥', 90, 15, 70, 80, 'substance', 2),
+  [pairKey('증기', '생명')]: hard('숨결', '🌬️', 30, 70, 75, 35, 'quality', 2),
+  [pairKey('늪', '무덤')]: hard('화석', '🦴', 25, 80, 50, 20, 'time', 2),
+  [pairKey('변이', '윤회')]: hard('신종', '✨', 75, 40, 90, 70, 'quality', 3),
+  [pairKey('해체', '숨결')]: hard('침묵', '🤫', 55, 45, 80, 65, 'substance', 3),
+  [pairKey('화석', '윤회')]: hard('기억', '📜', 20, 75, 95, 40, 'time', 3),
+  [pairKey('신종', '침묵')]: hard('교리', '📿', 60, 50, 88, 85, 'quality', 4),
+  [pairKey('기억', '해체')]: hard('이단', '🕯️', 85, 30, 92, 90, 'substance', 4),
+  [pairKey('교리', '이단')]: hard('분열', '⚔️', 95, 20, 98, 95, 'quality', 5),
 }
 
-export function tryCombine(idA: string, idB: string): Concept | { error: string } {
-  const result = lookupCombo(idA, idB)
-  if (!result) return { error: '조합할 수 없습니다' }
-  return result
-}
+export { pairKey as hardPairKey }

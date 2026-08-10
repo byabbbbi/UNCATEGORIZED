@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "vite build && gh-pages -d dist",
+    "preload": "node scripts/preload.mjs"
   },
   "dependencies": {
+    "idb-keyval": "^6.2.2",
     "motion": "^13.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -21,6 +24,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "gh-pages": "^6.3.0",
     "oxlint": "^1.75.0",
     "sass": "^1.102.0",
     "typescript": "~6.0.2",

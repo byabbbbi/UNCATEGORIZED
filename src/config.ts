@@ -1,0 +1,1 @@
+export const PROXY_URL = 'https://uncategorized.thesiminmeat.workers.dev';

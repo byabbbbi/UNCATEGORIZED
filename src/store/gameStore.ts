@@ -1,28 +1,49 @@
 import { create } from 'zustand'
-import { tryCombine } from '../data/combos'
+import { applyCollapseName, generate, hashStr, type WorldState } from '../generation'
 import {
   INITIAL_CONCEPTS,
   INITIAL_PILLARS,
   MAX_ERA,
   MAX_PROCLAMATIONS_PER_ERA,
-  PILLAR_GODS,
-  PILLAR_LABELS,
-  PILLAR_RULES,
+  PILLAR_KO,
 } from '../data/initial'
-import { calcProclaimImpact, calcT } from '../game/formulas'
+import { COLLAPSE_RULES } from '../data/rules'
+import { pickGodLine } from '../data/godlines'
+import {
+  buildDemoConcepts,
+  DEMO_SAVE,
+  demoCollapsedRules,
+} from '../data/demoSave'
+import {
+  GACHA_POOL,
+  gradeBonusT,
+  rollVaultGrade,
+} from '../data/gachaPool'
+import { calcProclaimImpact } from '../game/formulas'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
 import type {
   CanvasInstance,
   ChronicleEntry,
   Concept,
+  EndingKind,
   FxState,
   Pillar,
   PillarKey,
+  ScreenMode,
+  VaultGrade,
 } from '../types'
-import { ALTAR_R, CARD_H, CARD_W, COMBINE_RADIUS, gradeDelayMs, gradeOf } from '../types'
+import {
+  ALTAR_R,
+  CARD_H,
+  CARD_W,
+  COMBINE_RADIUS,
+  gradeDelayMs,
+  pillarPhase,
+} from '../types'
 
 let chronicleSeq = 0
 let instanceSeq = 0
+let conceptSeq = 0
 
 function entry(era: number, text: string): ChronicleEntry {
   chronicleSeq += 1
@@ -32,6 +53,11 @@ function entry(era: number, text: string): ChronicleEntry {
 function uid(prefix: string) {
   instanceSeq += 1
   return `${prefix}-${instanceSeq}`
+}
+
+function newConceptId(name: string) {
+  conceptSeq += 1
+  return `g-${conceptSeq}-${hashStr(name).toString(36)}`
 }
 
 function dist(ax: number, ay: number, bx: number, by: number) {
@@ -52,16 +78,28 @@ const emptyFx = (): FxState => ({
   unclassifiedFx: false,
   vaultOpen: false,
   vaultReveal: null,
+  godLine: null,
+  inputLocked: false,
 })
 
+export interface GameStats {
+  discoveries: number
+  proclamations: number
+  resignations: number
+}
+
 export interface GameStore {
+  screen: ScreenMode
+  ending: EndingKind
   concepts: Concept[]
   discoveredIds: string[]
   pillars: Pillar[]
   coherence: number
   era: number
   shards: number
+  collapsed: PillarKey[]
   collapsedRules: string[]
+  contaminants: string[]
   chronicle: ChronicleEntry[]
   proclamationsThisEra: number
   instances: CanvasInstance[]
@@ -71,7 +109,11 @@ export interface GameStore {
   message: string | null
   muted: boolean
   fx: FxState
+  stats: GameStats
 
+  startFresh: () => void
+  startDemo: () => void
+  returnToTitle: () => void
   reset: () => void
   setHoverConcept: (id: string | null) => void
   selectInstance: (id: string | null) => void
@@ -88,6 +130,7 @@ export interface GameStore {
   closeVault: () => void
   pullVault: () => void
   clearTypingRule: () => void
+  clearGodLine: () => void
   toggleMute: () => void
 }
 
@@ -100,28 +143,209 @@ function seedInstances(concepts: Concept[]): CanvasInstance[] {
   }))
 }
 
-function createBase() {
+function createPlayState(opts?: {
+  demo?: boolean
+}): Omit<
+  GameStore,
+  | 'startFresh'
+  | 'startDemo'
+  | 'returnToTitle'
+  | 'reset'
+  | 'setHoverConcept'
+  | 'selectInstance'
+  | 'setTargetPillar'
+  | 'spawnFromDrawer'
+  | 'setInstancePos'
+  | 'handleDrop'
+  | 'endEra'
+  | 'openVault'
+  | 'closeVault'
+  | 'pullVault'
+  | 'clearTypingRule'
+  | 'clearGodLine'
+  | 'toggleMute'
+> {
   chronicleSeq = 0
   instanceSeq = 0
+  conceptSeq = 0
+
+  if (opts?.demo) {
+    const concepts = buildDemoConcepts()
+    const collapsed = [...DEMO_SAVE.collapsed]
+    return {
+      screen: 'play',
+      ending: null,
+      concepts,
+      discoveredIds: concepts.map((c) => c.id),
+      pillars: (Object.keys(DEMO_SAVE.pillars) as PillarKey[]).map((key) => ({
+        key,
+        stability: DEMO_SAVE.pillars[key],
+      })),
+      coherence: DEMO_SAVE.coherence,
+      era: DEMO_SAVE.era,
+      shards: DEMO_SAVE.shards,
+      collapsed,
+      collapsedRules: demoCollapsedRules(),
+      contaminants: [...DEMO_SAVE.contaminants],
+      chronicle: [
+        entry(DEMO_SAVE.era, '붕괴된 세계의 기록을 열람한다.'),
+        entry(3, 'QUANTITAS와 QUALITAS가 반납되었다.'),
+      ],
+      proclamationsThisEra:
+        MAX_PROCLAMATIONS_PER_ERA - DEMO_SAVE.declaresLeft,
+      instances: seedInstances(concepts),
+      selectedInstanceId: null,
+      hoverConceptId: null,
+      targetPillar: null,
+      message: '붕괴된 세계 — 규칙이 이미 적용 중',
+      muted: false,
+      fx: emptyFx(),
+      stats: { discoveries: concepts.length, proclamations: 8, resignations: 2 },
+    }
+  }
+
   const concepts = INITIAL_CONCEPTS.map((c) => ({ ...c }))
   return {
+    screen: 'play',
+    ending: null,
     concepts,
     discoveredIds: concepts.map((c) => c.id),
     pillars: INITIAL_PILLARS.map((p) => ({ ...p })),
     coherence: 100,
     era: 1,
     shards: 0,
-    collapsedRules: [] as string[],
+    collapsed: [],
+    collapsedRules: [],
+    contaminants: [],
     chronicle: [entry(1, '제1시대가 열린다. 네 기둥 아래 첫 개념이 놓인다.')],
     proclamationsThisEra: 0,
     instances: seedInstances(concepts),
-    selectedInstanceId: null as string | null,
-    hoverConceptId: null as string | null,
-    targetPillar: null as PillarKey | null,
-    message: null as string | null,
+    selectedInstanceId: null,
+    hoverConceptId: null,
+    targetPillar: null,
+    message: null,
     muted: false,
     fx: emptyFx(),
+    stats: { discoveries: 0, proclamations: 0, resignations: 0 },
   }
+}
+
+function titleState() {
+  return {
+    ...createPlayState(),
+    screen: 'title' as const,
+    instances: [] as CanvasInstance[],
+    chronicle: [] as ChronicleEntry[],
+  }
+}
+
+function worldOf(s: {
+  collapsed: PillarKey[]
+  contaminants: string[]
+  era: number
+}): WorldState {
+  return {
+    collapsed: s.collapsed,
+    contaminants: s.contaminants,
+    era: s.era,
+  }
+}
+
+function setMisreg(collapsedCount: number) {
+  document.documentElement.style.setProperty(
+    '--misreg',
+    `${collapsedCount * 0.9}px`,
+  )
+}
+
+function reduceMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
+function triggerEnding(kind: Exclude<EndingKind, null>) {
+  useGameStore.setState({
+    screen: 'ending',
+    ending: kind,
+    fx: { ...useGameStore.getState().fx, inputLocked: true },
+  })
+}
+
+function checkBlankEnding(coherence: number) {
+  if (coherence <= 0) triggerEnding('blank')
+}
+
+function checkIndistinctEnding(collapsed: PillarKey[]) {
+  if (collapsed.length >= 4) triggerEnding('indistinct')
+}
+
+function showGodLine(text: string, ms = 2000) {
+  useGameStore.setState((s) => ({
+    fx: { ...s.fx, godLine: text },
+  }))
+  window.setTimeout(() => {
+    useGameStore.setState((cur) => ({
+      fx: { ...cur.fx, godLine: null },
+    }))
+  }, ms)
+}
+
+function runCollapseSequence(pillarKey: PillarKey) {
+  const rule = COLLAPSE_RULES[pillarKey]
+  const resignLine = pickGodLine(pillarKey, 'resign')
+  const rm = reduceMotion()
+
+  useGameStore.setState((s) => ({
+    fx: {
+      ...s.fx,
+      inputLocked: true,
+      whiteFlash: !rm,
+      screenShake: rm ? 0 : 1,
+    },
+  }))
+  sfx.collapse()
+
+  window.setTimeout(() => {
+    useGameStore.setState((s) => ({
+      fx: { ...s.fx, whiteFlash: false, screenShake: 0, godLine: resignLine },
+    }))
+  }, rm ? 0 : 80)
+
+  window.setTimeout(() => {
+    useGameStore.setState((s) => {
+      const collapsedRules = s.collapsedRules.includes(rule)
+        ? s.collapsedRules
+        : [...s.collapsedRules, rule]
+      const collapsed = s.collapsed.includes(pillarKey)
+        ? s.collapsed
+        : [...s.collapsed, pillarKey]
+      setMisreg(collapsed.length)
+      return {
+        collapsed,
+        collapsedRules,
+        fx: {
+          ...s.fx,
+          godLine: null,
+          typingRule: rule,
+        },
+        stats: { ...s.stats, resignations: s.stats.resignations + 1 },
+        chronicle: [
+          ...s.chronicle,
+          entry(s.era, `${PILLAR_KO[pillarKey]}의 신이 사임했다. 규칙이 기록되었다.`),
+        ],
+      }
+    })
+  }, 1580)
+
+  window.setTimeout(() => {
+    useGameStore.setState((s) => ({
+      fx: { ...s.fx, inputLocked: false },
+    }))
+    const cur = useGameStore.getState()
+    checkIndistinctEnding(cur.collapsed)
+  }, 3000)
 }
 
 function shakeReject(instanceId: string) {
@@ -137,8 +361,20 @@ function shakeReject(instanceId: string) {
 
 function declareOnAltar(instanceId: string) {
   const s = useGameStore.getState()
+  if (s.fx.inputLocked || s.screen !== 'play') return
+
   const inst = s.instances.find((i) => i.instanceId === instanceId)
   if (!inst) return
+
+  const concept = s.concepts.find((c) => c.id === inst.conceptId)
+  if (!concept) return
+
+  if (concept.deleted) {
+    useGameStore.setState({ message: '삭제된 개념은 선포할 수 없다' })
+    sfx.reject()
+    shakeReject(instanceId)
+    return
+  }
 
   if (!s.targetPillar) {
     useGameStore.setState({ message: '우측에서 선포할 기둥을 고르세요' })
@@ -156,72 +392,85 @@ function declareOnAltar(instanceId: string) {
     return
   }
 
-  const concept = s.concepts.find((c) => c.id === inst.conceptId)
-  if (!concept) return
-
   const pillarKey = s.targetPillar
   const pillar = s.pillars.find((p) => p.key === pillarKey)
   if (!pillar || pillar.stability <= 0) {
     useGameStore.setState({
-      message: `${PILLAR_LABELS[pillarKey]} 기둥은 이미 붕괴했습니다`,
+      message: `${PILLAR_KO[pillarKey]} 기둥은 이미 붕괴했습니다`,
     })
     sfx.reject()
     return
   }
 
   const { D, coherenceLoss, shardsGained } = calcProclaimImpact(concept)
-  const T = calcT(concept.depth, s.era)
   const nextStability = Math.max(0, pillar.stability - D)
   const pillars = s.pillars.map((p) =>
     p.key === pillarKey ? { ...p, stability: nextStability } : p,
   )
 
-  const collapsedRules = [...s.collapsedRules]
-  let collapseNote = ''
-  let justCollapsed = false
-  if (pillar.stability > 0 && nextStability <= 0) {
-    const rule = PILLAR_RULES[pillarKey]
-    if (!collapsedRules.includes(rule)) collapsedRules.push(rule)
-    collapseNote = ` ${PILLAR_GODS[pillarKey]}의 기둥이 무너졌다.`
-    justCollapsed = true
-  }
+  const justCollapsed = pillar.stability > 0 && nextStability <= 0
+  const godPhase = justCollapsed
+    ? 'resign'
+    : pillarPhase(nextStability) === 'sophistry'
+      ? 'sophistry'
+      : 'judge'
 
   const line = entry(
     s.era,
-    `${concept.emoji} ${concept.name}을(를) ${PILLAR_LABELS[pillarKey]}에 선포했다. (D=${D.toFixed(1)}, T=${T}, −정합성 ${coherenceLoss.toFixed(1)}, +파편 ${shardsGained})${collapseNote}`,
+    `${concept.emoji} ${concept.name}을(를) ${PILLAR_KO[pillarKey]}에 선포했다.`,
   )
+
+  const nextCoherence = Math.max(0, s.coherence - coherenceLoss)
 
   useGameStore.setState({
     pillars,
-    coherence: Math.max(0, s.coherence - coherenceLoss),
+    coherence: nextCoherence,
     shards: s.shards + shardsGained,
-    collapsedRules,
     proclamationsThisEra: s.proclamationsThisEra + 1,
     chronicle: [...s.chronicle, line],
     instances: s.instances.filter((i) => i.instanceId !== instanceId),
     selectedInstanceId: null,
-    message: `${concept.name} → ${PILLAR_LABELS[pillarKey]} 선포`,
+    message: `${concept.name} → ${PILLAR_KO[pillarKey]} 선포`,
+    stats: {
+      ...s.stats,
+      proclamations: s.stats.proclamations + 1,
+    },
     fx: {
       ...s.fx,
       sealFlash: true,
-      screenShake: justCollapsed ? 0 : 1,
-      whiteFlash: justCollapsed,
-      typingRule: justCollapsed ? PILLAR_RULES[pillarKey] : s.fx.typingRule,
+      screenShake: justCollapsed || reduceMotion() ? 0 : 1,
     },
   })
 
   sfx.declare()
-  if (justCollapsed) sfx.collapse()
 
-  window.setTimeout(() => {
-    useGameStore.setState((cur) => ({
-      fx: { ...cur.fx, sealFlash: false, screenShake: 0, whiteFlash: false },
-    }))
-  }, 420)
+  if (!justCollapsed) {
+    showGodLine(pickGodLine(pillarKey, godPhase), 2000)
+    window.setTimeout(() => {
+      useGameStore.setState((cur) => ({
+        fx: { ...cur.fx, sealFlash: false, screenShake: 0 },
+      }))
+    }, 420)
+  } else {
+    window.setTimeout(() => {
+      useGameStore.setState((cur) => ({
+        fx: { ...cur.fx, sealFlash: false },
+      }))
+    }, 200)
+    runCollapseSequence(pillarKey)
+  }
+
+  checkBlankEnding(nextCoherence)
 }
 
-function combineAt(aId: string, bId: string, point: { x: number; y: number }) {
+async function combineAt(
+  aId: string,
+  bId: string,
+  point: { x: number; y: number },
+) {
   const s = useGameStore.getState()
+  if (s.fx.inputLocked || s.screen !== 'play') return
+
   const aInst = s.instances.find((i) => i.instanceId === aId)
   const bInst = s.instances.find((i) => i.instanceId === bId)
   if (!aInst || !bInst) return
@@ -230,52 +479,126 @@ function combineAt(aId: string, bId: string, point: { x: number; y: number }) {
   const b = s.concepts.find((c) => c.id === bInst.conceptId)
   if (!a || !b) return
 
-  const result = tryCombine(a.id, b.id)
-  if ('error' in result) {
-    useGameStore.setState({ message: result.error })
+  if (a.deleted || b.deleted) {
+    useGameStore.setState({ message: '삭제된 개념은 조합할 수 없다' })
     sfx.reject()
     shakeReject(aId)
     return
   }
 
-  const isDiscovery = !s.concepts.some((c) => c.id === result.id)
-  const concepts = isDiscovery ? [...s.concepts, { ...result }] : s.concepts
-  const discoveredIds = isDiscovery
-    ? [...s.discoveredIds, result.id]
-    : s.discoveredIds
-
+  // 로딩: 카드 뒷면 회전
   useGameStore.setState({
-    concepts,
-    discoveredIds,
     fx: {
       ...s.fx,
       combining: {
         aId,
         bId,
-        resultConceptId: result.id,
+        resultConceptId: null,
+        x: point.x - CARD_W / 2,
+        y: point.y - CARD_H / 2,
+        isDiscovery: false,
+        loading: true,
+      },
+      inputLocked: true,
+    },
+    message: '조합 판정 중…',
+  })
+  sfx.combine()
+
+  const result = await generate(a, b, worldOf(s))
+
+  const cur = useGameStore.getState()
+  if (!cur.fx.combining) return
+
+  const existing = cur.concepts.find(
+    (c) => c.name === result.name && !c.deleted === !result.deleted,
+  )
+  const isDiscovery = !existing
+
+  let concept: Concept
+  if (existing) {
+    concept = existing
+  } else {
+    concept = {
+      id: newConceptId(result.name),
+      name: result.name,
+      emoji: result.emoji,
+      chaos: result.chaos,
+      plausibility: result.plausibility,
+      narrative: result.narrative,
+      contagion: result.contagion,
+      depth: Math.max(a.depth, b.depth) + 1,
+      pillar: result.pillar,
+      contaminant: result.contaminant || undefined,
+      deleted: result.deleted,
+    }
+  }
+
+  const concepts = isDiscovery ? [...cur.concepts, concept] : cur.concepts
+  const discoveredIds = isDiscovery
+    ? [...cur.discoveredIds, concept.id]
+    : cur.discoveredIds
+
+  let coherence = cur.coherence
+  let contaminants = cur.contaminants
+  if (isDiscovery && result.deleted) {
+    coherence = Math.min(100, coherence + 3)
+  }
+  if (
+    isDiscovery &&
+    result.contaminant &&
+    !contaminants.includes(result.contaminant)
+  ) {
+    contaminants = [...contaminants, result.contaminant]
+  }
+
+  const chronicleLine = isDiscovery
+    ? entry(cur.era, result.chronicle || `${result.name}이(가) 목록에 추가되었다.`)
+    : null
+
+  useGameStore.setState({
+    concepts,
+    discoveredIds,
+    coherence,
+    contaminants,
+    stats: isDiscovery
+      ? { ...cur.stats, discoveries: cur.stats.discoveries + 1 }
+      : cur.stats,
+    chronicle: chronicleLine
+      ? [...cur.chronicle, chronicleLine]
+      : cur.chronicle,
+    fx: {
+      ...cur.fx,
+      combining: {
+        aId,
+        bId,
+        resultConceptId: concept.id,
         x: point.x - CARD_W / 2,
         y: point.y - CARD_H / 2,
         isDiscovery,
+        loading: false,
       },
+      inputLocked: true,
     },
     message: isDiscovery
-      ? `조합 성공: ${a.emoji}${b.emoji} → ${result.emoji} ${result.name}`
-      : `이미 발견한 개념: ${result.emoji} ${result.name}`,
-    chronicle: isDiscovery
-      ? [
-          ...s.chronicle,
-          entry(s.era, `${a.name}과(와) ${b.name}이(가) ${result.name}(으)로 합쳐졌다.`),
-        ]
-      : s.chronicle,
+      ? result.deleted
+        ? '검열된 개념이 기록되었다'
+        : `조합 성공: ${a.emoji}${b.emoji} → ${result.emoji} ${result.name}`
+      : `이미 발견한 개념: ${concept.emoji} ${concept.name}`,
   })
 
   if (isDiscovery) sfx.discover()
   else sfx.combine()
 
   window.setTimeout(() => {
-    const cur = useGameStore.getState()
-    const fx = cur.fx.combining
-    if (!fx) return
+    const after = useGameStore.getState()
+    const fx = after.fx.combining
+    if (!fx || !fx.resultConceptId) {
+      useGameStore.setState((st) => ({
+        fx: { ...st.fx, combining: null, inputLocked: false },
+      }))
+      return
+    }
     const nextInst: CanvasInstance = {
       instanceId: uid('i'),
       conceptId: fx.resultConceptId,
@@ -284,22 +607,40 @@ function combineAt(aId: string, bId: string, point: { x: number; y: number }) {
     }
     useGameStore.setState({
       instances: [
-        ...cur.instances.filter(
+        ...after.instances.filter(
           (i) => i.instanceId !== fx.aId && i.instanceId !== fx.bId,
         ),
         nextInst,
       ],
       selectedInstanceId: nextInst.instanceId,
       hoverConceptId: fx.resultConceptId,
-      fx: { ...cur.fx, combining: null },
+      fx: { ...after.fx, combining: null, inputLocked: false },
     })
   }, 520)
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  ...createBase(),
+  ...titleState(),
 
-  reset: () => set(createBase()),
+  startFresh: () => {
+    setMisreg(0)
+    set(createPlayState())
+  },
+
+  startDemo: () => {
+    setMisreg(DEMO_SAVE.collapsed.length)
+    set(createPlayState({ demo: true }))
+  },
+
+  returnToTitle: () => {
+    setMisreg(0)
+    set(titleState())
+  },
+
+  reset: () => {
+    setMisreg(0)
+    set(titleState())
+  },
 
   setHoverConcept: (id) => set({ hoverConceptId: id }),
 
@@ -313,15 +654,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   spawnFromDrawer: (conceptId, x, y) => {
-    if (!get().concepts.some((c) => c.id === conceptId)) return
+    const s = get()
+    if (s.fx.inputLocked || s.screen !== 'play') return
+    const concept = s.concepts.find((c) => c.id === conceptId)
+    if (!concept || concept.deleted) return
     const inst: CanvasInstance = {
       instanceId: uid('i'),
       conceptId,
       x: x - CARD_W / 2,
       y: y - CARD_H / 2,
     }
-    set((s) => ({
-      instances: [...s.instances, inst],
+    set((st) => ({
+      instances: [...st.instances, inst],
       selectedInstanceId: inst.instanceId,
       hoverConceptId: conceptId,
     }))
@@ -338,6 +682,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   handleDrop: (instanceId, center, altar) => {
     const state = get()
+    if (state.fx.inputLocked || state.screen !== 'play') return
     const dragged = state.instances.find((i) => i.instanceId === instanceId)
     if (!dragged) return
 
@@ -356,7 +701,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       .sort((a, b) => a.d - b.d)[0]
 
     if (target) {
-      combineAt(instanceId, target.c.instanceId, center)
+      void combineAt(instanceId, target.c.instanceId, center)
       return
     }
 
@@ -366,10 +711,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   endEra: () => {
     const s = get()
+    if (s.fx.inputLocked || s.screen !== 'play') return
+
     if (s.era >= MAX_ERA) {
-      set({ message: '마지막 시대입니다' })
+      if (s.collapsed.length >= 4) {
+        triggerEnding('indistinct')
+      } else if (s.coherence <= 0) {
+        triggerEnding('blank')
+      } else {
+        set({
+          chronicle: [
+            ...s.chronicle,
+            entry(s.era, `제${s.era}시대가 닫혔다.`),
+          ],
+        })
+        triggerEnding('classified')
+      }
       return
     }
+
     const nextEra = s.era + 1
     set({
       era: nextEra,
@@ -383,44 +743,101 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
   },
 
-  openVault: () => set((s) => ({ fx: { ...s.fx, vaultOpen: true } })),
+  openVault: () => {
+    if (get().fx.inputLocked) return
+    set((s) => ({ fx: { ...s.fx, vaultOpen: true } }))
+  },
 
   closeVault: () =>
     set((s) => ({
-      fx: { ...s.fx, vaultOpen: false, vaultReveal: null, unclassifiedFx: false },
+      fx: {
+        ...s.fx,
+        vaultOpen: false,
+        vaultReveal: null,
+        unclassifiedFx: false,
+      },
     })),
 
   pullVault: () => {
     const s = get()
-    if (s.shards < 10) {
+    if (s.shards < 10 || s.fx.inputLocked) {
       set({ message: '파편이 부족합니다 (10 필요)' })
       sfx.reject()
       return
     }
-    const pick = s.concepts[Math.floor(Math.random() * s.concepts.length)]
-    const grade = gradeOf(pick)
+
+    const grade: VaultGrade = rollVaultGrade()
+    const pool = GACHA_POOL[grade]
+    const pick = pool[Math.floor(Math.random() * pool.length)]
+    const bonus = gradeBonusT(grade)
+
+    let name = pick.name
+    if (s.collapsed.length >= 2) {
+      name = applyCollapseName(name, s.collapsed, hashStr(name + grade))
+    }
+
+    const scale = bonus > 0 ? 1 + bonus / 100 : 1
+    const concept: Concept = {
+      id: newConceptId(name),
+      name,
+      emoji: pick.emoji,
+      chaos: Math.min(100, Math.round(pick.chaos * scale)),
+      plausibility: Math.min(100, Math.round(pick.plausibility * scale)),
+      narrative: Math.min(100, Math.round(pick.narrative * scale)),
+      contagion: Math.min(100, Math.round(pick.contagion * scale)),
+      depth: grade === 'registered' ? 0 : grade === 'suspended' ? 2 : grade === 'injudicable' ? 3 : 4,
+      pillar: pick.pillar,
+      contaminant: pick.contaminant,
+    }
+
     sfx.gacha()
     set({
       shards: s.shards - 10,
+      concepts: [...s.concepts, concept],
+      discoveredIds: [...s.discoveredIds, concept.id],
+      stats: { ...s.stats, discoveries: s.stats.discoveries + 1 },
       fx: {
         ...s.fx,
-        vaultReveal: { conceptId: pick.id, grade },
-        unclassifiedFx: grade === 'unclassified',
+        vaultReveal: { conceptId: concept.id, grade },
+        unclassifiedFx: grade === 'uncategorized',
       },
     })
+
+    // 미분류: 생존 기둥 하나 −15
+    if (grade === 'uncategorized') {
+      window.setTimeout(() => {
+        const cur = get()
+        const alive = cur.pillars.filter((p) => p.stability > 0)
+        if (alive.length === 0) return
+        const target = alive[Math.floor(Math.random() * alive.length)]
+        const nextStability = Math.max(0, target.stability - 15)
+        const pillars = cur.pillars.map((p) =>
+          p.key === target.key ? { ...p, stability: nextStability } : p,
+        )
+        set({ pillars })
+        if (target.stability > 0 && nextStability <= 0) {
+          runCollapseSequence(target.key)
+        }
+      }, gradeDelayMs(grade) - 200)
+    }
+
     window.setTimeout(() => {
       const cur = get()
       const inst: CanvasInstance = {
         instanceId: uid('i'),
-        conceptId: pick.id,
+        conceptId: concept.id,
         x: 200,
         y: 140,
       }
       set({
         instances: [...cur.instances, inst],
         selectedInstanceId: inst.instanceId,
-        hoverConceptId: pick.id,
-        message: `회수: ${pick.emoji} ${pick.name}`,
+        hoverConceptId: concept.id,
+        message: `회수: ${concept.emoji} ${concept.name}`,
+        chronicle: [
+          ...cur.chronicle,
+          entry(cur.era, `보관소에서 ${concept.name}을(를) 회수했다.`),
+        ],
         fx: {
           ...get().fx,
           vaultReveal: null,
@@ -428,10 +845,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           unclassifiedFx: false,
         },
       })
-      if (grade === 'unclassified') sfx.discover()
+      if (grade === 'uncategorized') sfx.discover()
       else sfx.drop()
     }, gradeDelayMs(grade))
   },
 
   clearTypingRule: () => set((s) => ({ fx: { ...s.fx, typingRule: null } })),
+  clearGodLine: () => set((s) => ({ fx: { ...s.fx, godLine: null } })),
 }))
