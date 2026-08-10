@@ -1,13 +1,18 @@
 .side-panel {
   width: var(--side-w);
   flex: 0 0 var(--side-w);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 12px 12px 10px;
   background: var(--form-light);
   border-left: 1px solid var(--rule);
-  overflow: auto;
+  overflow: hidden;
+}
+
+.side-panel > .side-block:not(.side-block--chronicle) {
+  flex: 0 0 auto;
 }
 
 .side-block__head {
@@ -154,21 +159,25 @@
 }
 
 .side-block--chronicle {
-  flex: 1;
-  min-height: 140px;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .chronicle-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  overflow: auto;
-  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overscroll-behavior: contain;
 }
 
 .chronicle-list li {
@@ -192,6 +201,7 @@
 }
 
 .side-panel__era-note {
+  flex: 0 0 auto;
   margin: 0;
   font-family: var(--font-data);
   font-size: 10px;
