@@ -209,8 +209,9 @@ export function CanvasBoard() {
     discoveredIds.filter((id) => !['void', 'spark', 'clay', 'tide'].includes(id)),
   )
 
-  const eraUrgent =
-    proclamationsThisEra >= MAX_PROCLAMATIONS_PER_ERA || coherence <= 30
+  const eraRemainingZero =
+    proclamationsThisEra >= MAX_PROCLAMATIONS_PER_ERA
+  const eraUrgent = eraRemainingZero || coherence <= 30
 
   return (
     <section
@@ -231,18 +232,29 @@ export function CanvasBoard() {
       <div className="canvas-board__hint">카드를 끌어 겹치면 조합 · 제단에 놓으면 선포</div>
       <TutorialHint />
 
-      <button
-        type="button"
-        className="canvas-tool canvas-tool--tidy"
-        onClick={tidyCanvas}
-        disabled={fx.inputLocked}
-        title="캔버스 정리"
-      >
-        <span className="canvas-tool__icon" aria-hidden>
-          ⊞
-        </span>
-        <span className="canvas-tool__label">정리</span>
-      </button>
+      <div className="canvas-tools">
+        <button
+          type="button"
+          className={`canvas-tool canvas-tool--era${eraRemainingZero ? ' is-urgent' : ''}`}
+          onClick={endEra}
+          disabled={fx.inputLocked}
+          title="시대 마감"
+        >
+          <span className="canvas-tool__label">시대 마감</span>
+        </button>
+        <button
+          type="button"
+          className="canvas-tool canvas-tool--tidy"
+          onClick={tidyCanvas}
+          disabled={fx.inputLocked}
+          title="캔버스 정리"
+        >
+          <span className="canvas-tool__icon" aria-hidden>
+            ⊞
+          </span>
+          <span className="canvas-tool__label">정리</span>
+        </button>
+      </div>
 
       <motion.div
         className={`altar${fx.sealFlash ? ' is-stamping' : ''}${tutorialStep === 3 ? ' is-pulse' : ''}`}

@@ -42,23 +42,41 @@
   z-index: 1;
 }
 
-.canvas-tool {
+.canvas-tools {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 6;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.canvas-tool {
   appearance: none;
   border: 0;
   background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   padding: 4px;
   cursor: pointer;
   opacity: 0.6;
   color: var(--ink-dim);
   transition: opacity 0.15s ease;
+}
+
+.canvas-tool--era {
+  opacity: 0.75;
+  min-height: 28px;
+}
+
+.canvas-tool--era .canvas-tool__label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 
 .canvas-tool:hover:not(:disabled) {
@@ -70,6 +88,10 @@
   opacity: 0.35;
 }
 
+.canvas-tool--era.is-urgent {
+  animation: era-tool-pulse 2.2s ease-in-out infinite;
+}
+
 .canvas-tool__icon {
   font-size: 24px;
   line-height: 1;
@@ -79,6 +101,16 @@
   font-family: var(--font-data);
   font-size: 9px;
   letter-spacing: 0.08em;
+}
+
+@keyframes era-tool-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 0.95;
+  }
 }
 
 .canvas-card {
@@ -185,6 +217,11 @@
   .era-close-btn.is-urgent {
     animation: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--seal) 16%, transparent);
+  }
+
+  .canvas-tool--era.is-urgent {
+    animation: none;
+    opacity: 0.9;
   }
 }
 
