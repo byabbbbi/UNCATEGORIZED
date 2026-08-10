@@ -25,7 +25,7 @@ export interface WorldState {
   era: number
 }
 
-const pairKey = (a: string, b: string) => [a, b].sort().join('+')
+export const pairKey = (a: string, b: string) => [a, b].sort().join('+')
 
 export const cacheKey = (a: string, b: string, w: WorldState) =>
   [

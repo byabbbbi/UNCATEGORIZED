@@ -38,6 +38,8 @@ export interface CanvasInstance {
   y: number
   processing?: boolean
   revealDiscovery?: boolean
+  /** 동일 조합쌍이 세계 상태 때문에 다른 결과를 낸 경우 */
+  rerecord?: { previous: string; current: string } | null
 }
 
 export type EndingKind = 'blank' | 'indistinct' | 'classified' | null
@@ -57,6 +59,16 @@ export interface FxState {
   vaultReveal: null | { conceptId: string; grade: VaultGrade }
   godLine: string | null
   inputLocked: boolean
+  discoverPop: number
+  shardFlights: ShardFlight[]
+}
+
+export interface ShardFlight {
+  id: string
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
 }
 
 export function sealOf(concept: Concept): PillarKey {

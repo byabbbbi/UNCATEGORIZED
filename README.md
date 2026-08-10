@@ -1,6 +1,10 @@
 # UNCATEGORIZED
 
-*RES SINE CATEGORIA* — 네 기둥이 지켜 온 분류 대장에서, 당신은 개념을 조합하고 선포한다.
+**[▶ 플레이하기](https://byabbbbi.github.io/UNCATEGORIZED/)** — 플레이가 LLM을 개조한다.
+
+![UNCATEGORIZED](docs/banner.png)
+
+*RES SINE CATEGORIA* — 네 기둥이 지켜 온 분류 대장에서, 개념을 조합·선포하며 세계의 범주를 무너뜨린다. 무너진 기둥은 생성 규칙을 바꿔, 같은 조합도 다른 결과를 낸다.
 
 ## 플레이
 

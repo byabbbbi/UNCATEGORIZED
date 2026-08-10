@@ -7,6 +7,7 @@ import { StatStrip } from './components/StatStrip'
 import { VaultModal } from './components/VaultModal'
 import { TitleScreen } from './components/TitleScreen'
 import { EndingScreen } from './components/EndingScreen'
+import { ShardFlights } from './components/ShardFlights'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { useGameStore } from './store/gameStore'
 import { unlockAudio } from './sfx'
@@ -18,6 +19,7 @@ export default function App() {
   const coherence = useGameStore((s) => s.coherence)
   const era = useGameStore((s) => s.era)
   const shards = useGameStore((s) => s.shards)
+  const discoveredIds = useGameStore((s) => s.discoveredIds)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const message = useGameStore((s) => s.message)
   const muted = useGameStore((s) => s.muted)
@@ -26,6 +28,8 @@ export default function App() {
   const toggleMute = useGameStore((s) => s.toggleMute)
   const endEra = useGameStore((s) => s.endEra)
   const reset = useGameStore((s) => s.reset)
+
+  const discoveryCount = discoveredIds.length
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -58,6 +62,7 @@ export default function App() {
       onPointerDown={() => unlockAudio()}
     >
       {fx.whiteFlash && <div className="flash-white" />}
+      <ShardFlights />
 
       <AnimatePresence>
         {fx.godLine && (
@@ -84,6 +89,18 @@ export default function App() {
       >
         <header className="topbar">
           <div className="topbar__stats">
+            <label className="topbar__discover">
+              <span>발견</span>
+              <motion.strong
+                key={fx.discoverPop}
+                className={`misreg topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
+                initial={fx.discoverPop > 0 ? { scale: 1.45, color: 'var(--gold)' } : false}
+                animate={{ scale: 1, color: 'var(--ink)' }}
+                transition={{ type: 'spring', stiffness: 420, damping: 14 }}
+              >
+                <AnimatedNumber value={discoveryCount} digits={0} />
+              </motion.strong>
+            </label>
             <label>
               <span>정합성</span>
               <strong className="misreg">

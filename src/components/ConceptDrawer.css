@@ -63,7 +63,7 @@
   position: relative;
   width: 64px;
   appearance: none;
-  border: 1.5px solid var(--rule);
+  border: 0;
   background:
     repeating-linear-gradient(
       45deg,
@@ -76,32 +76,72 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+.drawer__vault-ring {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  pointer-events: none;
+}
+
+.drawer__vault-ring-track {
+  stroke: color-mix(in srgb, var(--rule) 70%, transparent);
+  stroke-width: 3;
+}
+
+.drawer__vault-ring-fill {
+  stroke: var(--gold);
+  stroke-width: 3;
+  stroke-linecap: butt;
+  transition: stroke-dashoffset 0.4s ease-out;
 }
 
 .drawer__vault-back {
-  font-size: 22px;
+  font-size: 20px;
   color: var(--ink-dim);
   opacity: 0.7;
+  z-index: 1;
 }
 
 .drawer__vault-wax {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   border: 1.5px solid var(--seal);
   background: color-mix(in srgb, var(--seal) 35%, var(--form));
-  bottom: 8px;
-  right: 8px;
+  bottom: 7px;
+  right: 7px;
+  z-index: 1;
+}
+
+.drawer__vault-count {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  z-index: 1;
 }
 
 .drawer__vault.is-ready {
-  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
 }
 
 .drawer__vault.is-ready .drawer__vault-wax {
   border-color: var(--gold);
   background: color-mix(in srgb, var(--gold) 40%, var(--form));
+}
+
+.drawer__vault.is-ready .drawer__vault-ring-fill {
+  stroke: var(--gold);
 }
 
 .drawer__pulse {
@@ -111,6 +151,7 @@
   border: 1px solid var(--gold);
   animation: vault-pulse 1.4s ease-in-out infinite;
   pointer-events: none;
+  z-index: 2;
 }
 
 @keyframes vault-pulse {
@@ -129,5 +170,9 @@
   .drawer__pulse {
     animation: none;
     opacity: 0.6;
+  }
+
+  .drawer__vault-ring-fill {
+    transition: none;
   }
 }

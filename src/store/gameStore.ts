@@ -4,6 +4,7 @@ import {
   fallbackGenerate,
   generate,
   hashStr,
+  pairKey,
   type WorldState,
 } from '../generation'
 import {
@@ -86,6 +87,8 @@ const emptyFx = (): FxState => ({
   vaultReveal: null,
   godLine: null,
   inputLocked: false,
+  discoverPop: 0,
+  shardFlights: [],
 })
 
 export interface GameStats {
@@ -110,6 +113,8 @@ export interface GameStore {
   proclamationsThisEra: number
   instances: CanvasInstance[]
   pending: Record<string, true>
+  /** pairKey(이름+이름) → 해당 쌍의 최초(현행) 결과명 */
+  codex: Record<string, string>
   tutorialStep: TutorialStep
   selectedInstanceId: string | null
   hoverConceptId: string | null
@@ -205,7 +210,8 @@ function createPlayState(opts?: {
         MAX_PROCLAMATIONS_PER_ERA - DEMO_SAVE.declaresLeft,
       instances: seedInstances(concepts),
       pending: {},
-      tutorialStep: 'done',
+      codex: {},
+      tutorialStep: 'done' as TutorialStep,
       selectedInstanceId: null,
       hoverConceptId: null,
       targetPillar: null,
@@ -236,7 +242,8 @@ function createPlayState(opts?: {
     proclamationsThisEra: 0,
     instances: seedInstances(concepts),
     pending: {},
-    tutorialStep: tutorialDone ? 'done' : 1,
+    codex: {},
+    tutorialStep: tutorialDone ? ('done' as TutorialStep) : 1,
     selectedInstanceId: null,
     hoverConceptId: null,
     targetPillar: null,
@@ -307,6 +314,45 @@ function showGodLine(text: string, ms = 2000) {
       fx: { ...cur.fx, godLine: null },
     }))
   }, ms)
+}
+
+function spawnShardFlights(count: number) {
+  if (count <= 0 || reduceMotion()) return
+  const altar = document.querySelector('.altar')
+  const vault = document.querySelector('.drawer__vault')
+  if (!altar || !vault) return
+  const a = altar.getBoundingClientRect()
+  const v = vault.getBoundingClientRect()
+  const fromX = a.left + a.width / 2
+  const fromY = a.top + a.height / 2
+  const toX = v.left + v.width / 2
+  const toY = v.top + v.height / 2
+  const n = Math.min(count, 8)
+  const flights: import('../types').ShardFlight[] = Array.from({ length: n }, (_, i) => ({
+    id: `sf-${Date.now()}-${i}`,
+    fromX: fromX + (Math.random() - 0.5) * 18,
+    fromY: fromY + (Math.random() - 0.5) * 18,
+    toX: toX + (Math.random() - 0.5) * 10,
+    toY: toY + (Math.random() - 0.5) * 10,
+  }))
+  useGameStore.setState((s) => ({
+    fx: { ...s.fx, shardFlights: [...s.fx.shardFlights, ...flights] },
+  }))
+  window.setTimeout(() => {
+    const ids = new Set(flights.map((f) => f.id))
+    useGameStore.setState((s) => ({
+      fx: {
+        ...s.fx,
+        shardFlights: s.fx.shardFlights.filter((f) => !ids.has(f.id)),
+      },
+    }))
+  }, 700)
+}
+
+function bumpDiscoverPop() {
+  useGameStore.setState((s) => ({
+    fx: { ...s.fx, discoverPop: s.fx.discoverPop + 1 },
+  }))
 }
 
 function runCollapseSequence(pillarKey: PillarKey) {
@@ -438,11 +484,12 @@ function declareOnAltar(instanceId: string) {
   )
 
   const nextCoherence = Math.max(0, s.coherence - coherenceLoss)
+  const nextShards = s.shards + shardsGained
 
   useGameStore.setState({
     pillars,
     coherence: nextCoherence,
-    shards: s.shards + shardsGained,
+    shards: nextShards,
     proclamationsThisEra: s.proclamationsThisEra + 1,
     chronicle: [...s.chronicle, line],
     instances: s.instances.filter((i) => i.instanceId !== instanceId),
@@ -460,6 +507,7 @@ function declareOnAltar(instanceId: string) {
   })
 
   sfx.declare()
+  if (shardsGained > 0) spawnShardFlights(shardsGained)
 
   if (!justCollapsed) {
     showGodLine(pickGodLine(pillarKey, godPhase), 2000)
@@ -503,6 +551,11 @@ function resolveSlot(
   const cur = useGameStore.getState()
   const slot = cur.instances.find((i) => i.instanceId === slotId)
   if (!slot?.processing) return
+
+  const pk = pairKey(a.name, b.name)
+  const previousName = cur.codex[pk]
+  const isRerecord = !!previousName && previousName !== result.name
+  const codex = { ...cur.codex, [pk]: result.name }
 
   const existing = cur.concepts.find(
     (c) => c.name === result.name && !c.deleted === !result.deleted,
@@ -549,24 +602,36 @@ function resolveSlot(
   const { [slotId]: _gone, ...restPending } = cur.pending
   void _gone
 
+  let chronicle = cur.chronicle
+  if (isRerecord && previousName) {
+    chronicle = [
+      ...chronicle,
+      entry(
+        cur.era,
+        `${previousName}가 ${result.name}로 다시 기록되었다. 이전 기록은 삭제되었다.`,
+      ),
+    ]
+  } else if (isDiscovery) {
+    chronicle = [
+      ...chronicle,
+      entry(
+        cur.era,
+        result.chronicle || `${result.name}이(가) 목록에 추가되었다.`,
+      ),
+    ]
+  }
+
   useGameStore.setState({
     concepts,
     discoveredIds,
     coherence,
     contaminants,
     pending: restPending,
+    codex,
     stats: isDiscovery
       ? { ...cur.stats, discoveries: cur.stats.discoveries + 1 }
       : cur.stats,
-    chronicle: isDiscovery
-      ? [
-          ...cur.chronicle,
-          entry(
-            cur.era,
-            result.chronicle || `${result.name}이(가) 목록에 추가되었다.`,
-          ),
-        ]
-      : cur.chronicle,
+    chronicle,
     instances: cur.instances.map((i) =>
       i.instanceId === slotId
         ? {
@@ -575,33 +640,43 @@ function resolveSlot(
             x: i.x,
             y: i.y,
             processing: false,
-            revealDiscovery: isDiscovery,
+            revealDiscovery: isDiscovery || isRerecord,
+            rerecord: isRerecord
+              ? { previous: previousName!, current: result.name }
+              : null,
           }
         : i,
     ),
     selectedInstanceId: slotId,
     hoverConceptId: concept.id,
-    message: isDiscovery
-      ? result.deleted
-        ? '검열된 개념이 기록되었다'
-        : `조합 성공: ${a.emoji}${b.emoji} → ${result.emoji} ${result.name}`
-      : `이미 발견한 개념: ${concept.emoji} ${concept.name}`,
+    message: isRerecord
+      ? `같은 조합이 다른 결과: ${previousName} → ${result.name}`
+      : isDiscovery
+        ? result.deleted
+          ? '검열된 개념이 기록되었다'
+          : `조합 성공: ${a.emoji}${b.emoji} → ${result.emoji} ${result.name}`
+        : `이미 발견한 개념: ${concept.emoji} ${concept.name}`,
   })
 
-  if (isDiscovery) sfx.discover()
+  if (isRerecord || isDiscovery) sfx.discover()
   else sfx.combine()
 
-  if (isDiscovery) markTutorial(2)
+  if (isDiscovery) {
+    bumpDiscoverPop()
+    markTutorial(2)
+  }
   const afterCount = useGameStore.getState().concepts.length
   if (afterCount >= 6) markTutorial(3)
 
   window.setTimeout(() => {
     useGameStore.setState((st) => ({
       instances: st.instances.map((i) =>
-        i.instanceId === slotId ? { ...i, revealDiscovery: false } : i,
+        i.instanceId === slotId
+          ? { ...i, revealDiscovery: false, rerecord: null }
+          : i,
       ),
     }))
-  }, 900)
+  }, isRerecord ? 2500 : 900)
 }
 
 function combineAt(
@@ -845,6 +920,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.fx,
         vaultReveal: { conceptId: concept.id, grade },
         unclassifiedFx: grade === 'uncategorized',
+        discoverPop: s.fx.discoverPop + 1,
       },
     })
 

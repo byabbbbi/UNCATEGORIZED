@@ -53,6 +53,7 @@ function CanvasCard({
   reject,
   locked,
   revealDiscovery,
+  rerecord,
 }: {
   instanceId: string
   conceptId: string
@@ -64,6 +65,7 @@ function CanvasCard({
   reject: boolean
   locked: boolean
   revealDiscovery: boolean
+  rerecord: { previous: string; current: string } | null | undefined
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -84,8 +86,8 @@ function CanvasCard({
 
   return (
     <motion.div
-      className="canvas-card"
-      style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: selected ? 20 : 5 }}
+      className={`canvas-card${rerecord ? ' is-rerecord' : ''}`}
+      style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: selected || rerecord ? 24 : 5 }}
       drag={!locked && !concept.deleted}
       dragMomentum={false}
       dragElastic={0.08}
@@ -120,9 +122,24 @@ function CanvasCard({
         concept={concept}
         pillarsAlive={alive}
         isDiscovery={isDiscovery || revealDiscovery}
-        selected={selected}
+        selected={selected || !!rerecord}
         reject={reject}
+        className={rerecord ? 'is-rerecord-seal' : ''}
       />
+      <AnimatePresence>
+        {rerecord && (
+          <motion.div
+            className="rerecord-caption"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <span>이전 · {rerecord.previous}</span>
+            <span>지금 · {rerecord.current}</span>
+            <em>같은 조합이 다른 결과를 냈다</em>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
@@ -197,6 +214,7 @@ export function CanvasBoard() {
               reject={fx.rejectInstanceId === inst.instanceId}
               locked={fx.inputLocked}
               revealDiscovery={!!inst.revealDiscovery}
+              rerecord={inst.rerecord}
             />
           )
         })}

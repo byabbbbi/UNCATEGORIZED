@@ -41,6 +41,40 @@
   height: var(--card-h);
 }
 
+.canvas-card.is-rerecord {
+  overflow: visible;
+}
+
+.rerecord-caption {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  translate: -50% 0;
+  width: max-content;
+  max-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--seal);
+  background: var(--form-light);
+  font-family: var(--font-decree);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink);
+  text-align: center;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.rerecord-caption em {
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--seal);
+}
+
+
 .altar {
   position: absolute;
   left: 50%;

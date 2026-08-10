@@ -1,0 +1,23 @@
+.shard-flights {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 280;
+}
+
+.shard-flights__dot {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 1.5px solid color-mix(in srgb, var(--seal) 55%, var(--gold));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--form-light) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shard-flights {
+    display: none;
+  }
+}
