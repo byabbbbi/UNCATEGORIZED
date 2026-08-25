@@ -1,4 +1,5 @@
 import { motion } from 'motion/react'
+import { formatDailyDate, getDailyWorld } from '../data/dailyWorld'
 import { hasSavedRun } from '../persist/runSave'
 import { useGameStore } from '../store/gameStore'
 import './TitleScreen.css'
@@ -7,7 +8,9 @@ export function TitleScreen() {
   const startFresh = useGameStore((s) => s.startFresh)
   const startContinue = useGameStore((s) => s.startContinue)
   const startDemo = useGameStore((s) => s.startDemo)
+  const startDaily = useGameStore((s) => s.startDaily)
   const canContinue = hasSavedRun()
+  const daily = getDailyWorld()
 
   return (
     <div className="title-screen">
@@ -34,6 +37,14 @@ export function TitleScreen() {
             onClick={startDemo}
           >
             붕괴된 세계에서
+          </button>
+          <button
+            type="button"
+            className="title-screen__btn title-screen__btn--daily"
+            onClick={startDaily}
+          >
+            오늘의 세계 · {formatDailyDate(daily.date)} · 「{daily.contaminant}」에
+            감염된 세계
           </button>
         </div>
       </motion.div>

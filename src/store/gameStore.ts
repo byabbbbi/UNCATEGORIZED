@@ -15,6 +15,7 @@ import {
   PILLAR_KO,
 } from '../data/initial'
 import { COLLAPSE_RULES } from '../data/rules'
+import { getDailyWorld, type DailyWorldConfig } from '../data/dailyWorld'
 import { pickGodLine } from '../data/godlines'
 import {
   buildDemoConcepts,
@@ -31,7 +32,9 @@ import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
 import { josa } from '../utils/josa'
 import {
+  clearDailySave,
   clearSave,
+  loadDailyRun,
   loadRun,
   scheduleSave,
 } from '../persist/runSave'
@@ -41,6 +44,7 @@ import type {
   Concept,
   EndingKind,
   FxState,
+  GameMode,
   Pillar,
   PillarKey,
   ScreenMode,
@@ -108,6 +112,8 @@ export interface GameStats {
 
 export interface GameStore {
   screen: ScreenMode
+  gameMode: GameMode
+  dailyDate: string | null
   ending: EndingKind
   concepts: Concept[]
   discoveredIds: string[]
@@ -137,6 +143,7 @@ export interface GameStore {
   startFresh: () => void
   startContinue: () => void
   startDemo: () => void
+  startDaily: () => void
   returnToTitle: () => void
   reset: () => void
   setHoverConcept: (id: string | null) => void
@@ -175,11 +182,13 @@ function seedInstances(concepts: Concept[]): CanvasInstance[] {
 
 function createPlayState(opts?: {
   demo?: boolean
+  daily?: DailyWorldConfig
 }): Omit<
   GameStore,
   | 'startFresh'
   | 'startContinue'
   | 'startDemo'
+  | 'startDaily'
   | 'returnToTitle'
   | 'reset'
   | 'setHoverConcept'
@@ -211,6 +220,8 @@ function createPlayState(opts?: {
     const collapsed = [...DEMO_SAVE.collapsed]
     return {
       screen: 'play',
+      gameMode: 'demo',
+      dailyDate: null,
       ending: null,
       concepts,
       discoveredIds: concepts.map((c) => c.id),
@@ -245,12 +256,61 @@ function createPlayState(opts?: {
     }
   }
 
+  if (opts?.daily) {
+    const daily = opts.daily
+    const concepts = daily.concepts.map((concept) => ({ ...concept }))
+    const collapsed = [...daily.collapsed]
+    const tutorialDone =
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem('tutorialDone') === '1'
+    const collapseChronicle = collapsed.map((key) =>
+      entry(1, `${PILLAR_KO[key]}의 기둥은 세계가 열리기 전에 이미 무너졌다.`),
+    )
+    return {
+      screen: 'play',
+      gameMode: 'daily',
+      dailyDate: daily.date,
+      ending: null,
+      concepts,
+      discoveredIds: concepts.map((concept) => concept.id),
+      pillars: INITIAL_PILLARS.map((pillar) => ({
+        ...pillar,
+        stability: collapsed.includes(pillar.key) ? 0 : pillar.stability,
+      })),
+      coherence: 100,
+      era: 1,
+      shards: 0,
+      collapsed,
+      collapsedRules: collapsed.map((key) => COLLAPSE_RULES[key]),
+      contaminantCounts: { [daily.contaminant]: 3 },
+      chronicle: [
+        entry(1, `오늘의 세계가 「${daily.contaminant}」에 감염된 채로 열린다.`),
+        ...collapseChronicle,
+      ],
+      proclamationsThisEra: 0,
+      instances: seedInstances(concepts),
+      pending: {},
+      codex: {},
+      tutorialStep: tutorialDone ? ('done' as TutorialStep) : 1,
+      selectedInstanceId: null,
+      hoverConceptId: null,
+      targetPillar: null,
+      message: `오늘의 세계 — 「${daily.contaminant}」 오염 승격 상태`,
+      muted: false,
+      fx: emptyFx(),
+      stats: { discoveries: 0, proclamations: 0, resignations: collapsed.length },
+      codexOpen: false,
+    }
+  }
+
   const concepts = INITIAL_CONCEPTS.map((c) => ({ ...c }))
   const tutorialDone =
     typeof localStorage !== 'undefined' &&
     localStorage.getItem('tutorialDone') === '1'
   return {
     screen: 'play',
+    gameMode: 'standard',
+    dailyDate: null,
     ending: null,
     concepts,
     discoveredIds: concepts.map((c) => c.id),
@@ -313,7 +373,9 @@ function reduceMotion(): boolean {
 }
 
 function triggerEnding(kind: Exclude<EndingKind, null>) {
-  clearSave()
+  const current = useGameStore.getState()
+  if (current.gameMode === 'daily') clearDailySave()
+  else clearSave()
   useGameStore.setState({
     screen: 'ending',
     ending: kind,
@@ -789,6 +851,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { save, cancelledProcessing } = loaded
     set({
       screen: 'play',
+      gameMode: 'standard',
+      dailyDate: null,
       ending: null,
       concepts: save.concepts,
       discoveredIds: save.discoveredIds,
@@ -824,13 +888,57 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(createPlayState({ demo: true }))
   },
 
+  startDaily: () => {
+    const daily = getDailyWorld()
+    const loaded = loadDailyRun(daily.date)
+    if (!loaded) {
+      set(createPlayState({ daily }))
+      return
+    }
+    const { save, cancelledProcessing } = loaded
+    set({
+      screen: 'play',
+      gameMode: 'daily',
+      dailyDate: daily.date,
+      ending: null,
+      concepts: save.concepts,
+      discoveredIds: save.discoveredIds,
+      pillars: save.pillars,
+      coherence: save.coherence,
+      era: save.era,
+      shards: save.shards,
+      collapsed: save.collapsed,
+      collapsedRules: save.collapsedRules,
+      contaminantCounts: save.contaminantCounts,
+      chronicle: save.chronicle,
+      proclamationsThisEra: save.proclamationsThisEra,
+      instances: save.instances,
+      pending: {},
+      codex: save.codex,
+      tutorialStep: save.tutorialStep,
+      selectedInstanceId: null,
+      hoverConceptId: null,
+      targetPillar: null,
+      message:
+        cancelledProcessing > 0
+          ? `처리 중이던 조합 ${cancelledProcessing}건이 취소되었습니다`
+          : '오늘의 세계를 이어서 플레이합니다',
+      muted: save.muted,
+      fx: emptyFx(),
+      stats: save.stats,
+      codexOpen: false,
+    })
+  },
+
   returnToTitle: () => {
-    clearSave()
+    if (get().gameMode === 'daily') clearDailySave()
+    else clearSave()
     set(titleState())
   },
 
   reset: () => {
-    clearSave()
+    if (get().gameMode === 'daily') clearDailySave()
+    else clearSave()
     set(titleState())
   },
 

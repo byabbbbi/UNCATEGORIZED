@@ -61,3 +61,11 @@
   border-color: var(--seal);
   color: var(--seal);
 }
+
+.title-screen__btn--daily {
+  margin-top: 6px;
+  border-color: var(--gold);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
