@@ -1,6 +1,7 @@
 import { HARD_TABLE, type HardEntry } from './combos'
 import { hashStr, mulberry32 } from '../generation'
 import type { Concept, PillarKey } from '../types'
+import { firstGrapheme } from '../utils/emoji'
 
 const KST_TIME_ZONE = 'Asia/Seoul'
 const PILLAR_KEYS: PillarKey[] = [
@@ -87,7 +88,7 @@ export function getDailyWorld(date = getKstDateKey()): DailyWorldConfig {
   const concepts = candidates.slice(0, 4).map(({ entry }, index) => ({
     id: `daily-${index}-${hashStr(`${date}:${entry.name}`).toString(36)}`,
     name: entry.name,
-    emoji: entry.emoji,
+    emoji: firstGrapheme(entry.emoji),
     chaos: entry.chaos,
     plausibility: entry.plausibility,
     narrative: entry.narrative,

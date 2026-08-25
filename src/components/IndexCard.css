@@ -86,6 +86,12 @@
 .index-card__emoji {
   font-size: 34px;
   line-height: 1;
+  width: 1.25em;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
+  flex: none;
 }
 
 .index-card__name {

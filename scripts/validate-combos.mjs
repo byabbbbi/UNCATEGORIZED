@@ -52,12 +52,22 @@ function pairKey(a, b) {
   return [a, b].sort().join('+')
 }
 
+function graphemeCount(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return 0
+  try {
+    return [...new Intl.Segmenter('ko', { granularity: 'grapheme' }).segment(text)].length
+  } catch {
+    return [...text].length
+  }
+}
+
 for (let i = 0; i < lines.length; i++) {
   const m = lines[i].match(
-    /n\(\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'[^']*',\s*'([^']+)',\s*'[^']*',\s*(\d+)/,
+    /n\(\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']*)',\s*'([^']+)',\s*'[^']*',\s*(\d+)/,
   )
   if (!m) continue
-  const [a, b, name, pillar, depth] = m.slice(1)
+  const [a, b, name, emoji, pillar, depth] = m.slice(1)
   const key = pairKey(a, b)
   const batch = batchForLine(i + 1)
   entries.push({
@@ -65,6 +75,7 @@ for (let i = 0; i < lines.length; i++) {
     a,
     b,
     name,
+    emoji,
     pillar,
     depth: Number(depth),
     line: 'EXTRA',
@@ -73,10 +84,10 @@ for (let i = 0; i < lines.length; i++) {
   })
 }
 
-for (const m of src.matchAll(/\[pairKey\('([^']+)',\s*'([^']+)'\)\]:\s*hard\(\s*'([^']+)'/g)) {
-  const [a, b, name] = m.slice(1)
+for (const m of src.matchAll(/\[pairKey\('([^']+)',\s*'([^']+)'\)\]:\s*hard\(\s*'([^']+)',\s*'([^']*)'/g)) {
+  const [a, b, name, emoji] = m.slice(1)
   const key = pairKey(a, b)
-  entries.push({ key, a, b, name, pillar: 'LEGACY', depth: 1, line: 'LEGACY', batch: null, lineNo: 0 })
+  entries.push({ key, a, b, name, emoji, pillar: 'LEGACY', depth: 1, line: 'LEGACY', batch: null, lineNo: 0 })
 }
 
 const allOutputNames = new Set(entries.map((e) => e.name))
@@ -111,6 +122,12 @@ for (const e of entries) {
     errors += 1
   }
   pairKeys.add(e.key)
+
+  const emojiCount = graphemeCount(e.emoji)
+  if (emojiCount !== 1) {
+    console.error(`ERROR emoji count: ${e.key} → "${e.emoji}" (graphemes=${emojiCount}, expected=1)`)
+    errors += 1
+  }
 
   const normalizedName = normalizeConceptName(e.name)
   if (normalizedName !== e.name) {
