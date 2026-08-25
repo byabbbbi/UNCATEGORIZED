@@ -38,6 +38,8 @@ export interface CanvasInstance {
   y: number
   processing?: boolean
   revealDiscovery?: boolean
+  /** 복제 직후 한 번만 재생하는 등장 애니메이션 */
+  spawnPop?: boolean
   /** 동일 조합쌍이 세계 상태 때문에 다른 결과를 낸 경우 */
   rerecord?: { previous: string; current: string } | null
 }
