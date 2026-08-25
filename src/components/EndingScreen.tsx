@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
+import { formatDailyDate } from '../data/dailyWorld'
 import { useGameStore } from '../store/gameStore'
 import type { EndingKind } from '../types'
 import './EndingScreen.css'
@@ -16,6 +17,8 @@ export function EndingScreen() {
   const ending = useGameStore((s) => s.ending)
   const chronicle = useGameStore((s) => s.chronicle)
   const stats = useGameStore((s) => s.stats)
+  const gameMode = useGameStore((s) => s.gameMode)
+  const dailyDate = useGameStore((s) => s.dailyDate)
   const returnToTitle = useGameStore((s) => s.returnToTitle)
   const [phase, setPhase] = useState<'fade' | 'line' | 'scroll' | 'summary'>('fade')
   const scrollRef = useRef<HTMLOListElement>(null)
@@ -94,6 +97,11 @@ export function EndingScreen() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
+          {gameMode === 'daily' && dailyDate && (
+            <p className="ending__daily">
+              오늘의 세계 · {formatDailyDate(dailyDate)}
+            </p>
+          )}
           {ending !== 'blank' && (
             <p>
               발견 {stats.discoveries} · 선포 {stats.proclamations} · 사임{' '}

@@ -73,6 +73,13 @@
   letter-spacing: 0.12em;
 }
 
+.ending__summary .ending__daily {
+  color: var(--gold);
+  font-family: var(--font-decree);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
 .ending__summary button {
   appearance: none;
   border: 1px solid currentColor;

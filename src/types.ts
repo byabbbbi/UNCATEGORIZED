@@ -46,6 +46,8 @@ export type EndingKind = 'blank' | 'indistinct' | 'classified' | null
 
 export type ScreenMode = 'title' | 'play' | 'ending'
 
+export type GameMode = 'standard' | 'demo' | 'daily'
+
 export type TutorialStep = 0 | 1 | 2 | 3 | 'done'
 
 export interface FxState {
