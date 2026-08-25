@@ -13,6 +13,7 @@ import {
   MAX_NAME_WORDS,
 } from './utils/nameLength'
 import { josa } from './utils/josa'
+import { firstGrapheme } from './utils/emoji'
 import type { Concept, PillarKey } from './types'
 
 export interface GenResult {
@@ -99,7 +100,7 @@ function hardResult(entry: HardEntry): GenResult {
   const name = limitConceptName(entry.name)
   return {
     name,
-    emoji: entry.emoji,
+    emoji: firstGrapheme(entry.emoji),
     chaos: entry.chaos,
     plausibility: entry.plausibility,
     narrative: entry.narrative,
@@ -259,7 +260,7 @@ ${roll ? `오염 지시: 결과 이름에 '${roll}'${josa(roll, ['을', '를'])}
 ${rejectName ? `\n직전 결과 '${rejectName}'${josa(rejectName, ['은', '는'])} 부적절했다. 더 평이하고 이해하기 쉬운 실존 명사로 다시 만들어라.` : ''}
 
 [출력 형식]
-{"name":"한국어 2~10자(공백 제외). 자연스러우면 띄어 써도 좋다. 최대 3어절","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
+{"name":"한국어 2~10자(공백 제외). 자연스러우면 띄어 써도 좋다. 최대 3어절","emoji":"이모지 정확히 1개. 두 개 이상 쓰지 마라","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
 
 [규칙]
 - chaos+plausibility+narrative+contagion 합은 정확히 ${T}
@@ -319,7 +320,7 @@ function normalize(r: any, T: number): GenResult {
   const PILLARS = ['substance', 'quantity', 'quality', 'time'] as const
   return {
     name: limitConceptName(String(r.name || '')) || '이름 없는 것',
-    emoji: String(r.emoji || '❔').slice(0, 4),
+    emoji: firstGrapheme(r.emoji),
     chaos: vals[0],
     plausibility: vals[1],
     narrative: vals[2],
@@ -457,7 +458,7 @@ export function fallbackGenerate(
 
   return {
     name,
-    emoji: rnd() < 0.5 ? a.emoji : b.emoji,
+    emoji: firstGrapheme(rnd() < 0.5 ? a.emoji : b.emoji),
     chaos: c,
     plausibility: p,
     narrative: n,

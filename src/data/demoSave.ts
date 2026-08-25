@@ -2,6 +2,7 @@ import type { Concept, PillarKey } from '../types'
 import { fallbackGenerate, hashStr, type WorldState } from '../generation'
 import { INITIAL_CONCEPTS } from './initial'
 import { COLLAPSE_RULES } from './rules'
+import { firstGrapheme } from '../utils/emoji'
 
 export const DEMO_SAVE = {
   era: 4,
@@ -52,7 +53,7 @@ export function buildDemoConcepts(): Concept[] {
     return {
       id: `demo-${seed.toString(36)}`,
       name,
-      emoji: DEMO_EMOJIS[i] ?? gen.emoji,
+      emoji: firstGrapheme(DEMO_EMOJIS[i] ?? gen.emoji),
       chaos: gen.chaos,
       plausibility: gen.plausibility,
       narrative: gen.narrative,

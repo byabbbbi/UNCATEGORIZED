@@ -31,6 +31,7 @@ import { calcProclaimImpact } from '../game/formulas'
 import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
 import { josa } from '../utils/josa'
+import { firstGrapheme } from '../utils/emoji'
 import {
   clearDailySave,
   clearSave,
@@ -657,7 +658,7 @@ function resolveSlot(
     concept = {
       id: newConceptId(result.name),
       name: result.name,
-      emoji: result.emoji,
+      emoji: firstGrapheme(result.emoji),
       chaos: result.chaos,
       plausibility: result.plausibility,
       narrative: result.narrative,
@@ -856,7 +857,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameMode: 'standard',
       dailyDate: null,
       ending: null,
-      concepts: save.concepts,
+      concepts: save.concepts.map((concept) => ({
+        ...concept,
+        emoji: firstGrapheme(concept.emoji),
+      })),
       discoveredIds: save.discoveredIds,
       pillars: save.pillars,
       coherence: save.coherence,
@@ -903,7 +907,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameMode: 'daily',
       dailyDate: daily.date,
       ending: null,
-      concepts: save.concepts,
+      concepts: save.concepts.map((concept) => ({
+        ...concept,
+        emoji: firstGrapheme(concept.emoji),
+      })),
       discoveredIds: save.discoveredIds,
       pillars: save.pillars,
       coherence: save.coherence,
@@ -1172,7 +1179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const concept: Concept = {
       id: newConceptId(name),
       name,
-      emoji: pick.emoji,
+      emoji: firstGrapheme(pick.emoji),
       chaos: Math.min(100, Math.round(pick.chaos * scale)),
       plausibility: Math.min(100, Math.round(pick.plausibility * scale)),
       narrative: Math.min(100, Math.round(pick.narrative * scale)),
