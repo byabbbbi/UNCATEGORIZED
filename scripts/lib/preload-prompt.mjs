@@ -20,7 +20,7 @@ export function buildPreloadMessages(a, b, T) {
 - 없음. 평범하고 자연스러운 결과를 낼 것.
 
 [출력 형식]
-{"name":"한국어 2~12자","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
+{"name":"한국어 2~12자","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time|relation|place|state|action","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
 
 [규칙]
 - chaos+plausibility+narrative+contagion 합은 정확히 ${T}

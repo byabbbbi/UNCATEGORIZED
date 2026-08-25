@@ -1,4 +1,4 @@
-import type { Concept, Pillar, PillarKey } from '../types'
+import { PILLAR_KEYS, type Concept, type Pillar, type PillarKey } from '../types'
 
 export const INITIAL_CONCEPTS: Concept[] = [
   {
@@ -47,12 +47,10 @@ export const INITIAL_CONCEPTS: Concept[] = [
   },
 ]
 
-export const INITIAL_PILLARS: Pillar[] = [
-  { key: 'substance', stability: 100 },
-  { key: 'quantity', stability: 100 },
-  { key: 'quality', stability: 100 },
-  { key: 'time', stability: 100 },
-]
+export const INITIAL_PILLARS: Pillar[] = PILLAR_KEYS.map((key) => ({
+  key,
+  stability: 100,
+}))
 
 /** 라틴 대문자 — UI 기둥·도장·제단·타이틀 전용 */
 export const PILLAR_LATIN: Record<PillarKey, string> = {
@@ -60,6 +58,10 @@ export const PILLAR_LATIN: Record<PillarKey, string> = {
   quantity: 'QUANTITAS',
   quality: 'QUALITAS',
   time: 'TEMPUS',
+  relation: 'RELATIO',
+  place: 'LOCUS',
+  state: 'HABITUS',
+  action: 'ACTIO',
 }
 
 /** 한국어 병기 */
@@ -68,6 +70,10 @@ export const PILLAR_KO: Record<PillarKey, string> = {
   quantity: '측정',
   quality: '본질',
   time: '영겁',
+  relation: '인연',
+  place: '좌표',
+  state: '소유',
+  action: '인과',
 }
 
 /** @deprecated PILLAR_KO 사용. 호환용 별칭 */
@@ -78,7 +84,23 @@ export const PILLAR_GODS: Record<PillarKey, string> = {
   quantity: '측정의 신',
   quality: '본질의 신',
   time: '영겁의 신',
+  relation: '인연의 신',
+  place: '좌표의 신',
+  state: '소유의 신',
+  action: '인과의 신',
+}
+
+export const PILLAR_QUESTIONS: Record<PillarKey, string> = {
+  substance: '이것은 무엇인가',
+  quantity: '이것은 얼마나 있는가',
+  quality: '이것은 어떠한가',
+  time: '이것은 언제 있는가',
+  relation: '이것은 무엇과 이어지는가',
+  place: '이것은 어디에 있는가',
+  state: '이것은 무엇을 지니는가',
+  action: '무엇이 무엇에게 하는가',
 }
 
 export const MAX_PROCLAMATIONS_PER_ERA = 3
 export const MAX_ERA = 6
+export const INDISTINCT_COLLAPSE_THRESHOLD = 6

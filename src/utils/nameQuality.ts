@@ -93,6 +93,7 @@ function hasWeirdChars(name: string): boolean {
 
 export interface NameQualityContext {
   qualityCollapsed?: boolean
+  relationCollapsed?: boolean
 }
 
 /** true = 부적절 → 리롤 또는 폴백 */
@@ -109,7 +110,7 @@ export function isBadName(
 
   if (GIBBERISH_BLOCKLIST.test(trimmed)) return true
 
-  if (isConcatenation(trimmed, a, b)) return true
+  if (!ctx.relationCollapsed && isConcatenation(trimmed, a, b)) return true
 
   if (hasWeirdChars(trimmed)) return true
 

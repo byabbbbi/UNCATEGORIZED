@@ -6,7 +6,6 @@ import { downloadChronicleImage } from '../export/chronicleImage'
 import { calcD } from '../game/formulas'
 import { useGameStore } from '../store/gameStore'
 import './EndingScreen.css'
-
 export function EndingScreen() {
   const ending = useGameStore((s) => s.ending)
   const chronicle = useGameStore((s) => s.chronicle)

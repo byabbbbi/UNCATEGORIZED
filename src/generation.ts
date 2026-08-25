@@ -14,7 +14,7 @@ import {
 } from './utils/nameLength'
 import { josa } from './utils/josa'
 import { firstGrapheme } from './utils/emoji'
-import type { Concept, PillarKey } from './types'
+import { PILLAR_KEYS, type Concept, type PillarKey } from './types'
 
 export interface GenResult {
   name: string
@@ -174,7 +174,10 @@ export async function generate(
   // 4. API (프록시 경유, 부적절 이름 시 1회 리롤)
   try {
     const T = totalT(a, b, w)
-    const qualityCtx = { qualityCollapsed: w.collapsed.includes('quality') }
+    const qualityCtx = {
+      qualityCollapsed: w.collapsed.includes('quality'),
+      relationCollapsed: w.collapsed.includes('relation'),
+    }
     let raw = await callProxy(buildMessages(a, b, w), 20000)
     if (isRefusal(raw)) {
       const del = deletedConcept()
@@ -260,7 +263,7 @@ ${roll ? `오염 지시: 결과 이름에 '${roll}'${josa(roll, ['을', '를'])}
 ${rejectName ? `\n직전 결과 '${rejectName}'${josa(rejectName, ['은', '는'])} 부적절했다. 더 평이하고 이해하기 쉬운 실존 명사로 다시 만들어라.` : ''}
 
 [출력 형식]
-{"name":"한국어 2~10자(공백 제외). 자연스러우면 띄어 써도 좋다. 최대 3어절","emoji":"이모지 정확히 1개. 두 개 이상 쓰지 마라","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
+{"name":"한국어 2~10자(공백 제외). 자연스러우면 띄어 써도 좋다. 최대 3어절","emoji":"이모지 정확히 1개. 두 개 이상 쓰지 마라","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time|relation|place|state|action","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
 
 [규칙]
 - chaos+plausibility+narrative+contagion 합은 정확히 ${T}
@@ -317,7 +320,6 @@ function normalize(r: any, T: number): GenResult {
       vals[vals.indexOf(Math.min(...vals))] += over
     }
   }
-  const PILLARS = ['substance', 'quantity', 'quality', 'time'] as const
   return {
     name: limitConceptName(String(r.name || '')) || '이름 없는 것',
     emoji: firstGrapheme(r.emoji),
@@ -325,7 +327,9 @@ function normalize(r: any, T: number): GenResult {
     plausibility: vals[1],
     narrative: vals[2],
     contagion: vals[3],
-    pillar: PILLARS.includes(r.pillar) ? r.pillar : PILLARS[Math.floor(Math.random() * 4)],
+    pillar: PILLAR_KEYS.includes(r.pillar)
+      ? r.pillar
+      : PILLAR_KEYS[Math.floor(Math.random() * PILLAR_KEYS.length)],
     contaminant: String(r.contaminant || '')
       .split(/\s/)[0]
       .slice(0, 8),
@@ -359,6 +363,18 @@ const LEXICON = [
 ]
 
 const SAME_FORMS = ['무리', '층', '더미', '군집', '연쇄', '심층']
+const PLACE_LEXICON = [
+  '골짜기',
+  '벼랑',
+  '웅덩이',
+  '개펄',
+  '모래톱',
+  '벌판',
+  '언덕',
+  '수풀',
+  '도랑',
+  '둑',
+]
 const MAX_FALLBACK_LEN = MAX_NAME_COMPACT_LEN
 
 function fitsFallbackName(name: string): boolean {
@@ -386,7 +402,7 @@ function fallbackName(
   rnd: () => number,
   owned: Set<string>,
 ): string {
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
+  const pick = <T,>(arr: readonly T[]) => arr[Math.floor(rnd() * arr.length)]
   const ha = headNoun(a.name)
   const hb = headNoun(b.name)
 
@@ -434,9 +450,12 @@ export function fallbackGenerate(
 ): GenResult {
   const seed = hashStr(pairKey(a.name, b.name))
   const rnd = mulberry32(seed)
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rnd() * arr.length)]
+  const pick = <T,>(arr: readonly T[]) => arr[Math.floor(rnd() * arr.length)]
 
   let name = fallbackName(a, b, rnd, owned)
+
+  if (w.collapsed.includes('relation'))
+    name = headNoun(a.name) + headNoun(b.name)
 
   if (w.collapsed.includes('quality'))
     name = pick(['바삭한', '투명한', '매우 느린', '거대한', '접힌']) + ' ' + name
@@ -446,6 +465,13 @@ export function fallbackGenerate(
     name += ` 제${100 + Math.floor(rnd() * 900)}호`
   if (w.collapsed.includes('substance') && rnd() < 0.4)
     name = name.split('').reverse().join('')
+
+  if (w.collapsed.includes('place')) name += ` ${pick(PLACE_LEXICON)}`
+  if (w.collapsed.includes('state')) name += ' 주인'
+  if (w.collapsed.includes('action')) {
+    const actor = [...headNoun(name)].slice(0, 6).join('')
+    name = `${actor}${josa(actor, ['이', '가'])} 남긴 것`
+  }
 
   if (w.contaminants.length && rnd() < 0.3) name = pick(w.contaminants) + ' ' + name
 
@@ -463,7 +489,7 @@ export function fallbackGenerate(
     plausibility: p,
     narrative: n,
     contagion: Math.max(0, T - c - p - n),
-    pillar: pick(['substance', 'quantity', 'quality', 'time'] as const),
+    pillar: pick(PILLAR_KEYS),
     contaminant: a.name.slice(0, 4),
     chronicle: fallbackChronicle(name, rnd),
   }
