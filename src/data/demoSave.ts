@@ -60,6 +60,13 @@ export function buildDemoConcepts(): Concept[] {
       depth: 1 + (i % 3),
       pillar: gen.pillar,
       contaminant: gen.contaminant || (i === 9 ? '먼지' : undefined),
+      parents: [a.name, b.name],
+      bornAt: {
+        era: DEMO_SAVE.era,
+        collapsed: DEMO_SAVE.collapsed.length,
+        contaminant: '먼지',
+      },
+      chronicle: gen.chronicle,
     }
   })
 }

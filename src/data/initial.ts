@@ -11,6 +11,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     contagion: 25,
     depth: 0,
     pillar: 'substance',
+    chronicle: '공허는 태초부터 대장의 첫 장에 있었다.',
   },
   {
     id: 'spark',
@@ -22,6 +23,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     contagion: 35,
     depth: 0,
     pillar: 'quality',
+    chronicle: '불꽃은 태초부터 꺼지지 않은 채 등록되어 있었다.',
   },
   {
     id: 'clay',
@@ -33,6 +35,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     contagion: 15,
     depth: 0,
     pillar: 'substance',
+    chronicle: '점토는 태초부터 형상을 기다리고 있었다.',
   },
   {
     id: 'tide',
@@ -44,6 +47,7 @@ export const INITIAL_CONCEPTS: Concept[] = [
     contagion: 30,
     depth: 0,
     pillar: 'time',
+    chronicle: '조류는 태초부터 되돌아오는 것으로 기록되었다.',
   },
 ]
 

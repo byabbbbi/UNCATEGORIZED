@@ -2,12 +2,13 @@ import type {
   CanvasInstance,
   ChronicleEntry,
   Concept,
+  EraCaseState,
   Pillar,
   PillarKey,
   TutorialStep,
 } from '../types'
 
-export const SAVE_VERSION = 1
+export const SAVE_VERSION = 2
 export const SAVE_KEY = 'uncat-save-v1'
 export const DAILY_SAVE_KEY = 'uncat-daily-save-v1'
 
@@ -25,6 +26,8 @@ export interface RunSaveV1 {
   pillars: Pillar[]
   coherence: number
   era: number
+  worldSeed: number
+  eraCase: EraCaseState
   shards: number
   collapsed: PillarKey[]
   collapsedRules: string[]
@@ -129,6 +132,8 @@ type SaveableState = {
   pillars: Pillar[]
   coherence: number
   era: number
+  worldSeed: number
+  eraCase: EraCaseState
   shards: number
   collapsed: PillarKey[]
   collapsedRules: string[]
@@ -151,6 +156,8 @@ function payloadOf(state: SaveableState): RunSaveV1 {
     pillars: state.pillars,
     coherence: state.coherence,
     era: state.era,
+    worldSeed: state.worldSeed,
+    eraCase: state.eraCase,
     shards: state.shards,
     collapsed: state.collapsed,
     collapsedRules: state.collapsedRules,

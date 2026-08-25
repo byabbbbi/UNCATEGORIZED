@@ -4,6 +4,7 @@ import { CanvasBoard } from './components/CanvasBoard'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
+import { CaseBanner } from './components/CaseBanner'
 import { VaultModal } from './components/VaultModal'
 import { CodexModal } from './components/CodexModal'
 import { TitleScreen } from './components/TitleScreen'
@@ -193,6 +194,7 @@ export default function App() {
 
         <div className="app__main">
           <div className="playfield">
+            <CaseBanner />
             <CanvasBoard />
             <ConceptDrawer />
             <StatStrip />

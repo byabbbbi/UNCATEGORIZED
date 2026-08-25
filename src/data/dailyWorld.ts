@@ -89,6 +89,7 @@ export function getDailyWorld(date = getKstDateKey()): DailyWorldConfig {
     depth: entry.depth ?? 1,
     pillar: entry.pillar,
     contaminant: entry.contaminant,
+    chronicle: entry.chronicle,
   }))
   const contaminant = candidates[Math.floor(rnd() * candidates.length)].entry.name
   const collapsed =
