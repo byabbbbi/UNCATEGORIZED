@@ -35,10 +35,19 @@ function buildKnownNouns(): Set<string> {
 
 const KNOWN_NOUNS = buildKnownNouns()
 
-/** "벽돌에서 난 대양" → "대양" */
+/** "벽돌에서 난 대양" → "대양", "폭풍석괴" → "석괴" */
 export function headNoun(name: string): string {
-  const last = name.trim().split(/\s+/).pop() ?? name
-  return last.replace(/[의를을이가과와은는에서속]$/u, '') || last
+  const words = normalizeConceptName(name).split(' ')
+  const last = words.at(-1) ?? name
+  const stripped = last.replace(/[의를을이가과와은는에서속]$/u, '') || last
+
+  // 띄어쓰기 없는 긴 조어는 뒤쪽 절반을 중심 명사로 본다.
+  // API가 만든 "폭풍석괴" 같은 수식어+명사 결합도 이어붙이기 검사에 잡힌다.
+  const syllables = [...stripped]
+  if (words.length === 1 && syllables.length > 3) {
+    return syllables.slice(-Math.ceil(syllables.length / 2)).join('')
+  }
+  return stripped
 }
 
 function stripQualityPrefixes(name: string): string {
@@ -49,20 +58,14 @@ function stripQualityPrefixes(name: string): string {
   return out
 }
 
-function isConcatenation(name: string, a: Concept, b: Concept): boolean {
+export function isConcatenation(name: string, a: Concept, b: Concept): boolean {
   const compact = name.replace(/\s/g, '')
-  const ha = headNoun(a.name)
-  const hb = headNoun(b.name)
-  if (a.name === b.name) {
-    const doubled = ha + ha
-    return compact === doubled || compact === a.name + a.name || compact === ha + ha
-  }
-  return (
-    compact === ha + hb ||
-    compact === hb + ha ||
-    compact === a.name + b.name ||
-    compact === b.name + a.name
-  )
+  const sameConcept = a.id === b.id || normalizeConceptName(a.name) === normalizeConceptName(b.name)
+  if (sameConcept) return false
+
+  const ha = headNoun(a.name).replace(/\s/g, '')
+  const hb = headNoun(b.name).replace(/\s/g, '')
+  return !!ha && !!hb && compact.includes(ha) && compact.includes(hb)
 }
 
 function knownCoverage(name: string): number {

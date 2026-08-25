@@ -150,6 +150,7 @@ export interface GameStore {
   selectInstance: (id: string | null) => void
   setTargetPillar: (key: PillarKey | null) => void
   spawnFromDrawer: (conceptId: string, x: number, y: number) => void
+  duplicateInstance: (instanceId: string) => void
   setInstancePos: (instanceId: string, x: number, y: number) => void
   dismissInstance: (instanceId: string) => void
   setDrawerHighlight: (on: boolean) => void
@@ -195,6 +196,7 @@ function createPlayState(opts?: {
   | 'selectInstance'
   | 'setTargetPillar'
   | 'spawnFromDrawer'
+  | 'duplicateInstance'
   | 'setInstancePos'
   | 'dismissInstance'
   | 'setDrawerHighlight'
@@ -970,6 +972,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hoverConceptId: conceptId,
     }))
     sfx.drop()
+  },
+
+  duplicateInstance: (instanceId) => {
+    const s = get()
+    if (s.fx.inputLocked || s.screen !== 'play') return
+
+    const source = s.instances.find((instance) => instance.instanceId === instanceId)
+    if (!source || source.processing) return
+    const concept = s.concepts.find((item) => item.id === source.conceptId)
+    if (!concept || concept.deleted || concept.name === '███') return
+
+    const duplicate: CanvasInstance = {
+      instanceId: uid('i'),
+      conceptId: source.conceptId,
+      x: source.x + 20,
+      y: source.y + 20,
+      spawnPop: true,
+    }
+    set((state) => ({
+      instances: [...state.instances, duplicate],
+      selectedInstanceId: duplicate.instanceId,
+      hoverConceptId: duplicate.conceptId,
+    }))
+    sfx.drop()
+
+    setTimeout(() => {
+      set((state) => ({
+        instances: state.instances.map((instance) =>
+          instance.instanceId === duplicate.instanceId
+            ? { ...instance, spawnPop: undefined }
+            : instance,
+        ),
+      }))
+    }, 500)
   },
 
   setInstancePos: (instanceId, x, y) => {

@@ -1,13 +1,13 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 import PRELOAD from './data/preload.json'
-import { HARD_TABLE } from './data/combos'
+import { HARD_TABLE, type HardEntry } from './data/combos'
 import { COLLAPSE_RULES } from './data/rules'
 import { PROXY_URL } from './config'
 import { calcT } from './game/formulas'
 import { isBadName } from './utils/nameQuality'
 import {
-  normalizeConceptName,
   compactNameLength,
+  limitConceptName,
   wordCount,
   MAX_NAME_COMPACT_LEN,
   MAX_NAME_WORDS,
@@ -95,6 +95,41 @@ export function totalT(a: Concept, b: Concept, w: WorldState): number {
   return calcT(depth, w.era)
 }
 
+function hardResult(entry: HardEntry): GenResult {
+  const name = limitConceptName(entry.name)
+  return {
+    name,
+    emoji: entry.emoji,
+    chaos: entry.chaos,
+    plausibility: entry.plausibility,
+    narrative: entry.narrative,
+    contagion: entry.contagion,
+    pillar: entry.pillar,
+    contaminant: entry.contaminant ?? '',
+    chronicle:
+      entry.chronicle ??
+      `${name}${josa(name, ['이', '가'])} 목록에 등재되었다.`,
+  }
+}
+
+export function applyHardContamination(
+  result: GenResult,
+  contaminants: string[],
+  seedKey: string,
+): GenResult {
+  const active = [...new Set(contaminants.filter(Boolean))].sort()
+  if (!active.length) return result
+
+  const rnd = mulberry32(hashStr(seedKey))
+  if (rnd() >= 0.3) return result
+
+  const contaminant = active[Math.floor(rnd() * active.length)]
+  return {
+    ...result,
+    name: limitConceptName(`${contaminant} ${result.name}`),
+  }
+}
+
 export async function generate(
   a: Concept,
   b: Concept,
@@ -103,24 +138,20 @@ export async function generate(
 ): Promise<GenResult> {
   const key = cacheKey(a.name, b.name, w)
 
-  // 1. 하드코딩 테이블 (세계가 깨끗할 때만)
-  if (w.collapsed.length === 0 && w.contaminants.length === 0) {
+  // 1. 하드코딩 테이블 (기둥이 무너지기 전까지 오염 여부와 무관)
+  if (w.collapsed.length === 0) {
     const hard = HARD_TABLE[pairKey(a.name, b.name)]
     if (hard) {
-      bumpSource('hard')
-      return {
-        name: hard.name,
-        emoji: hard.emoji,
-        chaos: hard.chaos,
-        plausibility: hard.plausibility,
-        narrative: hard.narrative,
-        contagion: hard.contagion,
-        pillar: hard.pillar,
-        contaminant: hard.contaminant ?? '',
-        chronicle:
-          hard.chronicle ??
-          `${hard.name}${josa(hard.name, ['이', '가'])} 목록에 등재되었다.`,
+      const base = hardResult(hard)
+      if (w.contaminants.length > 0) {
+        const result = applyHardContamination(base, w.contaminants, key)
+        await idbSet(key, result)
+        bumpSource('hard')
+        return result
       }
+
+      bumpSource('hard')
+      return base
     }
   }
 
@@ -237,7 +268,8 @@ ${rejectName ? `\n직전 결과 '${rejectName}'${josa(rejectName, ['은', '는']
 - pillar: 이 개념이 흔드는 범주 하나
 - 실존 국가·정치인·실존 인물 금지
 - 실존하거나 즉시 이해 가능한 명사를 조합하라. 의미를 알 수 없는 조어·낱말 잇기를 만들지 마라
-- 두 입력 이름을 그대로 이어붙이지 마라. "점토점토" 같은 결과는 실패로 간주한다
+- 결과 이름에 두 입력의 단어를 모두 넣지 마라. 하나만 남기거나, 둘 다 버리고 새로운 사물명을 만들어라.
+- 두 입력 이름을 그대로 이어붙인 결과는 실패로 간주한다
 - A와 B가 같은 개념이면, 반복이 아니라 그것이 쌓이거나 심화된 하나의 사물을 만들어라 (점토+점토=벽돌)
 
 [예시]
@@ -269,27 +301,6 @@ const isRefusal = (t: string) =>
   /죄송|할 수 없|응답할 수|도와드릴 수 없|cannot|sorry|unable/i.test(t) &&
   !t.includes('{')
 
-function limitNameLength(name: string): string {
-  let n = normalizeConceptName(name)
-  const words = n.split(' ')
-  if (words.length > MAX_NAME_WORDS) n = words.slice(0, MAX_NAME_WORDS).join(' ')
-
-  if (compactNameLength(n) <= MAX_NAME_COMPACT_LEN) return n
-
-  let compact = 0
-  let out = ''
-  for (const ch of n) {
-    if (ch === ' ') {
-      if (out && !out.endsWith(' ')) out += ch
-      continue
-    }
-    if (compact >= MAX_NAME_COMPACT_LEN) break
-    out += ch
-    compact += 1
-  }
-  return normalizeConceptName(out)
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(r: any, T: number): GenResult {
   const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -307,7 +318,7 @@ function normalize(r: any, T: number): GenResult {
   }
   const PILLARS = ['substance', 'quantity', 'quality', 'time'] as const
   return {
-    name: limitNameLength(String(r.name || '')) || '이름 없는 것',
+    name: limitConceptName(String(r.name || '')) || '이름 없는 것',
     emoji: String(r.emoji || '❔').slice(0, 4),
     chaos: vals[0],
     plausibility: vals[1],
@@ -437,7 +448,7 @@ export function fallbackGenerate(
 
   if (w.contaminants.length && rnd() < 0.3) name = pick(w.contaminants) + ' ' + name
 
-  name = name.slice(0, 14)
+  name = limitConceptName(name)
 
   const T = totalT(a, b, w)
   const c = Math.round(T * (0.25 + rnd() * 0.35))
@@ -470,7 +481,7 @@ export function applyCollapseName(name: string, collapsed: PillarKey[], seed: nu
     out += ` 제${100 + Math.floor(rnd() * 900)}호`
   if (collapsed.includes('substance') && rnd() < 0.4)
     out = out.split('').reverse().join('')
-  return out.slice(0, 14)
+  return limitConceptName(out)
 }
 
 export function hashStr(s: string) {

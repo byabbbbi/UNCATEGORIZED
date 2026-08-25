@@ -67,6 +67,7 @@ function CanvasCard({
   reject,
   locked,
   revealDiscovery,
+  spawnPop,
   rerecord,
   tilt,
 }: {
@@ -80,6 +81,7 @@ function CanvasCard({
   reject: boolean
   locked: boolean
   revealDiscovery: boolean
+  spawnPop: boolean
   rerecord: { previous: string; current: string } | null | undefined
   tilt: number
 }) {
@@ -89,9 +91,12 @@ function CanvasCard({
   const handleDrop = useGameStore((s) => s.handleDrop)
   const setInstancePos = useGameStore((s) => s.setInstancePos)
   const dismissInstance = useGameStore((s) => s.dismissInstance)
+  const duplicateInstance = useGameStore((s) => s.duplicateInstance)
   const setDrawerHighlight = useGameStore((s) => s.setDrawerHighlight)
   const boardRef = useRef<HTMLElement | null>(null)
   const dragging = useRef(false)
+  const didDrag = useRef(false)
+  const dragResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const mx = useMotionValue(x)
   const my = useMotionValue(y)
@@ -107,6 +112,13 @@ function CanvasCard({
     }
   }, [x, y, mx, my])
 
+  useEffect(
+    () => () => {
+      if (dragResetTimer.current) clearTimeout(dragResetTimer.current)
+    },
+    [],
+  )
+
   if (!concept) return null
 
   return (
@@ -117,11 +129,19 @@ function CanvasCard({
       dragMomentum={false}
       dragElastic={0.08}
       whileDrag={{ scale: 1.06, rotate: 1.5, zIndex: 100 }}
-      initial={revealDiscovery ? { scale: 0.7, opacity: 0 } : false}
+      initial={
+        spawnPop
+          ? { scale: 0.55, opacity: 0, rotate: tilt - 4 }
+          : revealDiscovery
+            ? { scale: 0.7, opacity: 0 }
+            : false
+      }
       animate={{ scale: 1, opacity: 1, rotate: tilt }}
-      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+      transition={{ type: 'spring', stiffness: 460, damping: 19 }}
       onDragStart={() => {
         dragging.current = true
+        didDrag.current = true
+        if (dragResetTimer.current) clearTimeout(dragResetTimer.current)
         sfx.pick()
       }}
       onPointerDown={() => {
@@ -130,11 +150,20 @@ function CanvasCard({
         boardRef.current = document.querySelector('.canvas-board')
       }}
       onHoverStart={() => setHoverConcept(conceptId)}
+      onDoubleClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        if (didDrag.current || locked || concept.deleted) return
+        duplicateInstance(instanceId)
+      }}
       onDrag={(_, info) => {
         setDrawerHighlight(pointOverDrawer(info.point.x, info.point.y))
       }}
       onDragEnd={(_, info) => {
         dragging.current = false
+        dragResetTimer.current = setTimeout(() => {
+          didDrag.current = false
+        }, 250)
         setDrawerHighlight(false)
         if (pointOverDrawer(info.point.x, info.point.y)) {
           dismissInstance(instanceId)
@@ -301,6 +330,7 @@ export function CanvasBoard() {
               reject={fx.rejectInstanceId === inst.instanceId}
               locked={fx.inputLocked}
               revealDiscovery={!!inst.revealDiscovery}
+              spawnPop={!!inst.spawnPop}
               rerecord={inst.rerecord}
               tilt={cardTiltDeg(inst.conceptId, collapsedCount)}
             />
