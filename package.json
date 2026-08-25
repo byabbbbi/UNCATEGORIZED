@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist",
-    "preload": "node scripts/preload.mjs"
+    "preload": "node scripts/preload.mjs",
+    "validate:combos": "node scripts/validate-combos.mjs"
   },
   "dependencies": {
     "idb-keyval": "^6.2.2",
