@@ -4,6 +4,14 @@ import { HARD_TABLE } from './data/combos'
 import { COLLAPSE_RULES } from './data/rules'
 import { PROXY_URL } from './config'
 import { calcT } from './game/formulas'
+import { isBadName } from './utils/nameQuality'
+import {
+  normalizeConceptName,
+  compactNameLength,
+  wordCount,
+  MAX_NAME_COMPACT_LEN,
+  MAX_NAME_WORDS,
+} from './utils/nameLength'
 import { josa } from './utils/josa'
 import type { Concept, PillarKey } from './types'
 
@@ -131,16 +139,34 @@ export async function generate(
     return pre
   }
 
-  // 4. API (프록시 경유)
+  // 4. API (프록시 경유, 부적절 이름 시 1회 리롤)
   try {
-    const raw = await callProxy(buildMessages(a, b, w), 20000)
+    const T = totalT(a, b, w)
+    const qualityCtx = { qualityCollapsed: w.collapsed.includes('quality') }
+    let raw = await callProxy(buildMessages(a, b, w), 20000)
     if (isRefusal(raw)) {
       const del = deletedConcept()
       await idbSet(key, del)
       bumpSource('api')
       return del
     }
-    const result = normalize(parseModelJSON(raw), totalT(a, b, w))
+    let result = normalize(parseModelJSON(raw), T)
+    if (isBadName(result.name, a, b, qualityCtx)) {
+      raw = await callProxy(buildMessages(a, b, w, result.name), 20000)
+      if (isRefusal(raw)) {
+        const fb = fallbackGenerate(a, b, w, owned)
+        await idbSet(key, fb)
+        bumpSource('fallback')
+        return fb
+      }
+      result = normalize(parseModelJSON(raw), T)
+      if (isBadName(result.name, a, b, qualityCtx)) {
+        const fb = fallbackGenerate(a, b, w, owned)
+        await idbSet(key, fb)
+        bumpSource('fallback')
+        return fb
+      }
+    }
     await idbSet(key, result)
     bumpSource('api')
     return result
@@ -172,13 +198,25 @@ async function callProxy(messages: unknown[], timeoutMs: number): Promise<string
   }
 }
 
-function buildMessages(a: Concept, b: Concept, w: WorldState) {
+function exampleStats(T: number, chaosPct: number, plausPct: number, narrPct: number) {
+  const c = Math.round(T * chaosPct)
+  const p = Math.round(T * plausPct)
+  const n = Math.round(T * narrPct)
+  const g = T - c - p - n
+  return { c, p, n, g }
+}
+
+function buildMessages(a: Concept, b: Concept, w: WorldState, rejectName?: string) {
   const T = totalT(a, b, w)
   const rules = w.collapsed.map((p) => COLLAPSE_RULES[p])
   const roll =
     w.contaminants.length && Math.random() < 0.3
       ? w.contaminants[Math.floor(Math.random() * w.contaminants.length)]
       : null
+
+  const ex1 = exampleStats(T, 0.45, 0.37, 0.1)
+  const ex2 = exampleStats(T, 0.31, 0.49, 0.12)
+  const ex3 = exampleStats(T, 0.35, 0.45, 0.12)
 
   const system = `당신은 개념 조합 판정기다. 두 개념을 합쳐 새 개념 하나를 만든다.
 반드시 JSON 객체 하나만 출력한다. 마크다운, 설명, 인사 금지.
@@ -187,9 +225,10 @@ function buildMessages(a: Concept, b: Concept, w: WorldState) {
 무너진 범주의 규칙 — 결과 이름에 반드시 반영하라:
 ${rules.length ? rules.map((r) => '- ' + r).join('\n') : '- 없음. 평범하고 자연스러운 결과를 낼 것.'}
 ${roll ? `오염 지시: 결과 이름에 '${roll}'${josa(roll, ['을', '를'])} 자연스럽게 섞어라.` : ''}
+${rejectName ? `\n직전 결과 '${rejectName}'${josa(rejectName, ['은', '는'])} 부적절했다. 더 평이하고 이해하기 쉬운 실존 명사로 다시 만들어라.` : ''}
 
 [출력 형식]
-{"name":"한국어 2~12자","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
+{"name":"한국어 2~10자(공백 제외). 자연스러우면 띄어 써도 좋다. 최대 3어절","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장. 건조한 행정 문체."}
 
 [규칙]
 - chaos+plausibility+narrative+contagion 합은 정확히 ${T}
@@ -197,12 +236,19 @@ ${roll ? `오염 지시: 결과 이름에 '${roll}'${josa(roll, ['을', '를'])}
 - plausibility: 그런데도 얼마나 그럴듯한가. 노골적으로 강해 보이려는 이름("무한","전능","신" 남발)은 반드시 낮게
 - pillar: 이 개념이 흔드는 범주 하나
 - 실존 국가·정치인·실존 인물 금지
+- 실존하거나 즉시 이해 가능한 명사를 조합하라. 의미를 알 수 없는 조어·낱말 잇기를 만들지 마라
 - 두 입력 이름을 그대로 이어붙이지 마라. "점토점토" 같은 결과는 실패로 간주한다
 - A와 B가 같은 개념이면, 반복이 아니라 그것이 쌓이거나 심화된 하나의 사물을 만들어라 (점토+점토=벽돌)
 
 [예시]
 입력 A: 빵집, B: 숫자
-{"name":"베이커리 4395호점","emoji":"🥐","chaos":${Math.round(T * 0.45)},"plausibility":${Math.round(T * 0.37)},"narrative":${Math.round(T * 0.1)},"contagion":${T - Math.round(T * 0.45) - Math.round(T * 0.37) - Math.round(T * 0.1)},"pillar":"quantity","contaminant":"지점번호","chronicle":"1호점부터 4394호점까지의 위치를 아는 자는 없다."}`
+{"name":"베이커리 4395호점","emoji":"🥐","chaos":${ex1.c},"plausibility":${ex1.p},"narrative":${ex1.n},"contagion":${ex1.g},"pillar":"quantity","contaminant":"지점번호","chronicle":"1호점부터 4394호점까지의 위치를 아는 자는 없다."}
+
+입력 A: 점토, B: 점토
+{"name":"벽돌","emoji":"🧱","chaos":${ex2.c},"plausibility":${ex2.p},"narrative":${ex2.n},"contagion":${ex2.g},"pillar":"substance","contaminant":"점토","chronicle":"점토가 쌓여 벽돌로 등재되었다. 규격은 추정이다."}
+
+입력 A: 늪, B: 안개
+{"name":"늪 안개","emoji":"🌫️","chaos":${ex3.c},"plausibility":${ex3.p},"narrative":${ex3.n},"contagion":${ex3.g},"pillar":"quality","contaminant":"습기","chronicle":"늪과 안개가 만나 늪 안개로 등재되었다. 농도는 추정이다."}`
 
   return [
     { role: 'system', content: system },
@@ -223,6 +269,27 @@ const isRefusal = (t: string) =>
   /죄송|할 수 없|응답할 수|도와드릴 수 없|cannot|sorry|unable/i.test(t) &&
   !t.includes('{')
 
+function limitNameLength(name: string): string {
+  let n = normalizeConceptName(name)
+  const words = n.split(' ')
+  if (words.length > MAX_NAME_WORDS) n = words.slice(0, MAX_NAME_WORDS).join(' ')
+
+  if (compactNameLength(n) <= MAX_NAME_COMPACT_LEN) return n
+
+  let compact = 0
+  let out = ''
+  for (const ch of n) {
+    if (ch === ' ') {
+      if (out && !out.endsWith(' ')) out += ch
+      continue
+    }
+    if (compact >= MAX_NAME_COMPACT_LEN) break
+    out += ch
+    compact += 1
+  }
+  return normalizeConceptName(out)
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(r: any, T: number): GenResult {
   const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -240,7 +307,7 @@ function normalize(r: any, T: number): GenResult {
   }
   const PILLARS = ['substance', 'quantity', 'quality', 'time'] as const
   return {
-    name: String(r.name || '').slice(0, 20) || '이름 없는 것',
+    name: limitNameLength(String(r.name || '')) || '이름 없는 것',
     emoji: String(r.emoji || '❔').slice(0, 4),
     chaos: vals[0],
     plausibility: vals[1],
@@ -280,7 +347,11 @@ const LEXICON = [
 ]
 
 const SAME_FORMS = ['무리', '층', '더미', '군집', '연쇄', '심층']
-const MAX_FALLBACK_LEN = 8
+const MAX_FALLBACK_LEN = MAX_NAME_COMPACT_LEN
+
+function fitsFallbackName(name: string): boolean {
+  return compactNameLength(name) <= MAX_FALLBACK_LEN && wordCount(name) <= MAX_NAME_WORDS
+}
 
 /** "벽돌에서 난 대양" → "대양" */
 function headNoun(name: string): string {
@@ -309,11 +380,13 @@ function fallbackName(
 
   if (ha === hb) {
     const n = `${ha} ${pick(SAME_FORMS)}`
-    return n.length <= MAX_FALLBACK_LEN ? n : pickUnusedLexicon(rnd, owned)
+    return fitsFallbackName(n) ? n : pickUnusedLexicon(rnd, owned)
   }
 
-  const joined = rnd() < 0.5 ? `${ha} ${hb}` : `${hb} ${ha}`
-  if (joined.length <= MAX_FALLBACK_LEN) return joined
+  const joined = `${ha} ${hb}`
+  if (fitsFallbackName(joined)) return joined
+  const reversed = `${hb} ${ha}`
+  if (fitsFallbackName(reversed)) return reversed
 
   // 결합이 길면 결합을 포기한다 — 여기가 폭주 차단점
   return pickUnusedLexicon(rnd, owned)
