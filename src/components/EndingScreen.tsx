@@ -1,26 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { formatDailyDate } from '../data/dailyWorld'
+import { ENDING_LINES } from '../data/endings'
+import { downloadChronicleImage } from '../export/chronicleImage'
+import { calcD } from '../game/formulas'
 import { useGameStore } from '../store/gameStore'
-import type { EndingKind } from '../types'
 import './EndingScreen.css'
-
-const LINES: Record<Exclude<EndingKind, null>, string> = {
-  blank: '기록할 것이 남지 않았다.',
-  indistinct:
-    '마지막 범주가 반납되었다. 이제 당신을 오류라 부를 근거도 사라졌다.',
-  classified:
-    '여섯 시대가 닫혔다. 신들은 합의했다 — 당신은 이제 대장의 정식 항목이다. 예외는 더 이상 없다.',
-}
 
 export function EndingScreen() {
   const ending = useGameStore((s) => s.ending)
   const chronicle = useGameStore((s) => s.chronicle)
   const stats = useGameStore((s) => s.stats)
+  const concepts = useGameStore((s) => s.concepts)
+  const collapsed = useGameStore((s) => s.collapsed)
+  const collapsedRules = useGameStore((s) => s.collapsedRules)
+  const contaminantCounts = useGameStore((s) => s.contaminantCounts)
+  const era = useGameStore((s) => s.era)
   const gameMode = useGameStore((s) => s.gameMode)
   const dailyDate = useGameStore((s) => s.dailyDate)
   const returnToTitle = useGameStore((s) => s.returnToTitle)
   const [phase, setPhase] = useState<'fade' | 'line' | 'scroll' | 'summary'>('fade')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLOListElement>(null)
 
   useEffect(() => {
@@ -59,6 +60,46 @@ export function EndingScreen() {
 
   if (!ending) return null
 
+  const exportChronicle = async () => {
+    setExporting(true)
+    setExportError(null)
+    const highestDestruction = concepts.reduce(
+      (highest, concept) =>
+        concept.deleted
+          ? highest
+          : Math.max(highest, calcD(concept.chaos, concept.plausibility)),
+      0,
+    )
+    const dailyContaminant = Object.entries(contaminantCounts).find(
+      ([, count]) => count >= 3,
+    )?.[0]
+
+    try {
+      await downloadChronicleImage({
+        ending,
+        discoveries: stats.discoveries,
+        collapsed,
+        collapsedRules,
+        era,
+        highestDestruction,
+        chronicle,
+        daily:
+          gameMode === 'daily' && dailyDate
+            ? {
+                date: dailyDate,
+                contaminant: dailyContaminant ?? '미상',
+              }
+            : null,
+      })
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : '기록을 내보내지 못했습니다.',
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className={`ending ending--${ending}`}>
       {ending === 'blank' && phase === 'fade' && (
@@ -77,7 +118,7 @@ export function EndingScreen() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          {LINES[ending]}
+          {ENDING_LINES[ending]}
         </motion.p>
       )}
 
@@ -108,9 +149,24 @@ export function EndingScreen() {
               {stats.resignations}
             </p>
           )}
-          <button type="button" onClick={returnToTitle}>
-            처음으로
-          </button>
+          {exportError && (
+            <p className="ending__export-error" role="alert">
+              {exportError}
+            </p>
+          )}
+          <div className="ending__actions">
+            <button
+              type="button"
+              className="ending__export"
+              onClick={exportChronicle}
+              disabled={exporting}
+            >
+              {exporting ? '기록 작성 중…' : '기록 내보내기'}
+            </button>
+            <button type="button" onClick={returnToTitle}>
+              처음으로
+            </button>
+          </div>
         </motion.div>
       )}
     </div>
