@@ -90,3 +90,26 @@
   padding: 10px 22px;
   cursor: pointer;
 }
+
+.ending__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ending__summary .ending__export {
+  border-color: var(--seal);
+  color: var(--seal);
+}
+
+.ending__summary button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.ending__summary .ending__export-error {
+  margin-bottom: 10px;
+  color: var(--seal);
+  font-family: var(--font-decree);
+  letter-spacing: 0;
+}
