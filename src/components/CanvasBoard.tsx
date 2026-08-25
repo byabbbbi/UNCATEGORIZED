@@ -13,18 +13,8 @@ import { sfx } from '../sfx'
 import { MAX_PROCLAMATIONS_PER_ERA } from '../data/initial'
 import { ALTAR_R, CARD_H, CARD_W } from '../types'
 import type { PillarKey } from '../types'
+import { pillarsAliveMap } from '../utils/pillars'
 import './CanvasBoard.css'
-
-function pillarsAliveMap(
-  pillars: { key: PillarKey; stability: number }[],
-): Record<PillarKey, boolean> {
-  return {
-    substance: (pillars.find((p) => p.key === 'substance')?.stability ?? 0) > 0,
-    quantity: (pillars.find((p) => p.key === 'quantity')?.stability ?? 0) > 0,
-    quality: (pillars.find((p) => p.key === 'quality')?.stability ?? 0) > 0,
-    time: (pillars.find((p) => p.key === 'time')?.stability ?? 0) > 0,
-  }
-}
 
 function cardTiltDeg(conceptId: string, collapsed: number): number {
   if (collapsed <= 0) return 0

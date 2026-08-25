@@ -11,9 +11,8 @@ export const DEMO_SAVE = {
   declaresLeft: 3,
   collapsed: ['quantity', 'quality'] as PillarKey[],
   contaminantCounts: { 먼지: 3 } as Record<string, number>,
-  pillars: { substance: 34, quantity: 0, quality: 0, time: 51 } as Record<
-    PillarKey,
-    number
+  pillars: { substance: 34, quantity: 0, quality: 0, time: 51 } as Partial<
+    Record<PillarKey, number>
   >,
   concepts: [
     '공허',

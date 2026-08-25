@@ -2,23 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { IndexCard } from './IndexCard'
 import { useGameStore } from '../store/gameStore'
-import type { Concept, PillarKey } from '../types'
+import type { Concept } from '../types'
+import { pillarsAliveMap } from '../utils/pillars'
 import './CodexModal.css'
 
 type SortMode = 'recent' | 'name' | 'depth'
 
 const INITIAL_IDS = new Set(['void', 'spark', 'clay', 'tide'])
-
-function pillarsAliveMap(
-  pillars: { key: PillarKey; stability: number }[],
-): Record<PillarKey, boolean> {
-  return {
-    substance: (pillars.find((p) => p.key === 'substance')?.stability ?? 0) > 0,
-    quantity: (pillars.find((p) => p.key === 'quantity')?.stability ?? 0) > 0,
-    quality: (pillars.find((p) => p.key === 'quality')?.stability ?? 0) > 0,
-    time: (pillars.find((p) => p.key === 'time')?.stability ?? 0) > 0,
-  }
-}
 
 export function CodexModal() {
   const open = useGameStore((s) => s.codexOpen)

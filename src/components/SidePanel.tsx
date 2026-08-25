@@ -8,6 +8,7 @@ import {
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
   PILLAR_LATIN,
+  PILLAR_QUESTIONS,
 } from '../data/initial'
 import type { PillarKey } from '../types'
 import { pillarPhase } from '../types'
@@ -60,7 +61,7 @@ export function SidePanel() {
 
       <section className="side-block">
         <header className="side-block__head">
-          <h2>네 기둥</h2>
+          <h2>여덟 기둥</h2>
           <span className="side-block__count">선포 잔여 {remaining}</span>
         </header>
         <ul className="pillar-list">
@@ -126,6 +127,7 @@ function PillarRow({
         className={`pillar-row${selected ? ' is-selected' : ''}${collapsed ? ' is-collapsed' : ''} is-${phase}`}
         disabled={collapsed}
         onClick={onSelect}
+        title={PILLAR_QUESTIONS[pillarKey]}
       >
         <div className="pillar-row__meta">
           <strong className="pillar-row__latin">

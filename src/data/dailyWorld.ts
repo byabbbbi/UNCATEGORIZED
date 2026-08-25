@@ -1,16 +1,9 @@
 import { HARD_TABLE, type HardEntry } from './combos'
 import { hashStr, mulberry32 } from '../generation'
-import type { Concept, PillarKey } from '../types'
+import { PILLAR_KEYS, type Concept, type PillarKey } from '../types'
 import { firstGrapheme } from '../utils/emoji'
 
 const KST_TIME_ZONE = 'Asia/Seoul'
-const PILLAR_KEYS: PillarKey[] = [
-  'substance',
-  'quantity',
-  'quality',
-  'time',
-]
-
 interface DailyCandidate {
   sourceKey: string
   entry: HardEntry

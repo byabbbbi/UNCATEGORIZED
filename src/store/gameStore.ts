@@ -10,6 +10,7 @@ import {
 import {
   INITIAL_CONCEPTS,
   INITIAL_PILLARS,
+  INDISTINCT_COLLAPSE_THRESHOLD,
   MAX_ERA,
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
@@ -182,6 +183,16 @@ function seedInstances(concepts: Concept[]): CanvasInstance[] {
   }))
 }
 
+function restorePillars(saved: Pillar[], collapsed: PillarKey[]): Pillar[] {
+  const savedByKey = new Map(saved.map((pillar) => [pillar.key, pillar.stability]))
+  return INITIAL_PILLARS.map((pillar) => ({
+    ...pillar,
+    stability:
+      savedByKey.get(pillar.key) ??
+      (collapsed.includes(pillar.key) ? 0 : pillar.stability),
+  }))
+}
+
 function createPlayState(opts?: {
   demo?: boolean
   daily?: DailyWorldConfig
@@ -228,9 +239,9 @@ function createPlayState(opts?: {
       ending: null,
       concepts,
       discoveredIds: concepts.map((c) => c.id),
-      pillars: (Object.keys(DEMO_SAVE.pillars) as PillarKey[]).map((key) => ({
-        key,
-        stability: DEMO_SAVE.pillars[key],
+      pillars: INITIAL_PILLARS.map((pillar) => ({
+        ...pillar,
+        stability: DEMO_SAVE.pillars[pillar.key] ?? pillar.stability,
       })),
       coherence: DEMO_SAVE.coherence,
       era: DEMO_SAVE.era,
@@ -324,7 +335,7 @@ function createPlayState(opts?: {
     collapsed: [],
     collapsedRules: [],
     contaminantCounts: {},
-    chronicle: [entry(1, '제1시대가 열린다. 네 기둥 아래 첫 개념이 놓인다.')],
+    chronicle: [entry(1, '제1시대가 열린다. 여덟 기둥 아래 첫 개념이 놓인다.')],
     proclamationsThisEra: 0,
     instances: seedInstances(concepts),
     pending: {},
@@ -391,7 +402,8 @@ function checkBlankEnding(coherence: number) {
 }
 
 function checkIndistinctEnding(collapsed: PillarKey[]) {
-  if (collapsed.length >= 4) triggerEnding('indistinct')
+  if (collapsed.length >= INDISTINCT_COLLAPSE_THRESHOLD)
+    triggerEnding('indistinct')
 }
 
 function showGodLine(text: string, ms = 2000) {
@@ -862,7 +874,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         emoji: firstGrapheme(concept.emoji),
       })),
       discoveredIds: save.discoveredIds,
-      pillars: save.pillars,
+      pillars: restorePillars(save.pillars, save.collapsed),
       coherence: save.coherence,
       era: save.era,
       shards: save.shards,
@@ -912,7 +924,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         emoji: firstGrapheme(concept.emoji),
       })),
       discoveredIds: save.discoveredIds,
-      pillars: save.pillars,
+      pillars: restorePillars(save.pillars, save.collapsed),
       coherence: save.coherence,
       era: save.era,
       shards: save.shards,
@@ -1113,7 +1125,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (s.fx.inputLocked || s.screen !== 'play') return
 
     if (s.era >= MAX_ERA) {
-      if (s.collapsed.length >= 4) {
+      if (s.collapsed.length >= INDISTINCT_COLLAPSE_THRESHOLD) {
         triggerEnding('indistinct')
       } else if (s.coherence <= 0) {
         triggerEnding('blank')

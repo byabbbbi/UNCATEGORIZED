@@ -1,4 +1,15 @@
-export type PillarKey = 'substance' | 'quantity' | 'quality' | 'time'
+export const PILLAR_KEYS = [
+  'substance',
+  'quantity',
+  'quality',
+  'time',
+  'relation',
+  'place',
+  'state',
+  'action',
+] as const
+
+export type PillarKey = (typeof PILLAR_KEYS)[number]
 
 export interface Concept {
   id: string
@@ -84,6 +95,10 @@ export function sealOf(concept: Concept): PillarKey {
     quantity: concept.plausibility,
     quality: concept.chaos,
     time: concept.contagion,
+    relation: 0,
+    place: 0,
+    state: 0,
+    action: 0,
   }
   return (Object.entries(scores) as [PillarKey, number][]).sort((a, b) => b[1] - a[1])[0][0]
 }
@@ -101,6 +116,10 @@ export const SEAL_GLYPH: Record<PillarKey, string> = {
   quantity: 'Qn',
   quality: 'Qa',
   time: 'Tp',
+  relation: 'Re',
+  place: 'Lo',
+  state: 'Ha',
+  action: 'Ac',
 }
 
 export const SEAL_TITLE: Record<PillarKey, string> = {
@@ -108,6 +127,10 @@ export const SEAL_TITLE: Record<PillarKey, string> = {
   quantity: 'QUANTITAS · 측정',
   quality: 'QUALITAS · 본질',
   time: 'TEMPUS · 영겁',
+  relation: 'RELATIO · 인연',
+  place: 'LOCUS · 좌표',
+  state: 'HABITUS · 소유',
+  action: 'ACTIO · 인과',
 }
 
 export const CARD_W = 96
