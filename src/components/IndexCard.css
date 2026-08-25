@@ -98,7 +98,9 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  /* 공백 어절 경계에서만 줄바꿈 — 한 어절 내부는 쪼개지 않음 */
   word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .index-card__star {

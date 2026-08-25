@@ -27,8 +27,14 @@ import {
   rollVaultGrade,
 } from '../data/gachaPool'
 import { calcProclaimImpact } from '../game/formulas'
+import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
 import { josa } from '../utils/josa'
+import {
+  clearSave,
+  loadRun,
+  scheduleSave,
+} from '../persist/runSave'
 import type {
   CanvasInstance,
   ChronicleEntry,
@@ -129,6 +135,7 @@ export interface GameStore {
   codexOpen: boolean
 
   startFresh: () => void
+  startContinue: () => void
   startDemo: () => void
   returnToTitle: () => void
   reset: () => void
@@ -171,6 +178,7 @@ function createPlayState(opts?: {
 }): Omit<
   GameStore,
   | 'startFresh'
+  | 'startContinue'
   | 'startDemo'
   | 'returnToTitle'
   | 'reset'
@@ -305,6 +313,7 @@ function reduceMotion(): boolean {
 }
 
 function triggerEnding(kind: Exclude<EndingKind, null>) {
+  clearSave()
   useGameStore.setState({
     screen: 'ending',
     ending: kind,
@@ -480,7 +489,8 @@ function declareOnAltar(instanceId: string) {
   }
 
   const { D, coherenceLoss, shardsGained } = calcProclaimImpact(concept)
-  const nextStability = Math.max(0, pillar.stability - D)
+  const effectiveD = D * getEraDMultiplier(s.era)
+  const nextStability = Math.max(0, pillar.stability - effectiveD)
   const pillars = s.pillars.map((p) =>
     p.key === pillarKey ? { ...p, stability: nextStability } : p,
   )
@@ -766,18 +776,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...titleState(),
 
   startFresh: () => {
+    clearSave()
     set(createPlayState())
   },
 
+  startContinue: () => {
+    const loaded = loadRun()
+    if (!loaded) {
+      set(createPlayState())
+      return
+    }
+    const { save, cancelledProcessing } = loaded
+    set({
+      screen: 'play',
+      ending: null,
+      concepts: save.concepts,
+      discoveredIds: save.discoveredIds,
+      pillars: save.pillars,
+      coherence: save.coherence,
+      era: save.era,
+      shards: save.shards,
+      collapsed: save.collapsed,
+      collapsedRules: save.collapsedRules,
+      contaminantCounts: save.contaminantCounts,
+      chronicle: save.chronicle,
+      proclamationsThisEra: save.proclamationsThisEra,
+      instances: save.instances,
+      pending: {},
+      codex: save.codex,
+      tutorialStep: save.tutorialStep,
+      selectedInstanceId: null,
+      hoverConceptId: null,
+      targetPillar: null,
+      message:
+        cancelledProcessing > 0
+          ? `처리 중이던 조합 ${cancelledProcessing}건이 취소되었습니다`
+          : '이어서 플레이합니다',
+      muted: save.muted,
+      fx: emptyFx(),
+      stats: save.stats,
+      codexOpen: false,
+    })
+  },
+
   startDemo: () => {
+    clearSave()
     set(createPlayState({ demo: true }))
   },
 
   returnToTitle: () => {
+    clearSave()
     set(titleState())
   },
 
   reset: () => {
+    clearSave()
     set(titleState())
   },
 
@@ -1061,3 +1114,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ tutorialStep: 'done' })
   },
 }))
+
+useGameStore.subscribe((state) => {
+  scheduleSave(state)
+})

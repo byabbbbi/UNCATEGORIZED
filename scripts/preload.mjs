@@ -1,11 +1,20 @@
 /**
  * 프리로드 캐시 생성기 (Node 18+)
- * 사용: node scripts/preload.mjs [상한=150]
+ * 사용:
+ *   node scripts/preload.mjs [limit=200] [--yes] [--retry-failed]
  * PROXY_URL은 src/config.ts에서 읽는다.
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createInterface } from 'node:readline'
+import {
+  buildPreloadQueue,
+  cacheKey,
+  comboT,
+  parseCombosGraph,
+} from './lib/preload-graph.mjs'
+import { buildPreloadMessages, normalizeEntry } from './lib/preload-prompt.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
@@ -18,43 +27,60 @@ if (!m) {
 }
 const PROXY_URL = m[1]
 
-const LIMIT = Number(process.argv[2] || 150)
+const args = process.argv.slice(2)
+const LIMIT = Number(args.find((a) => /^\d+$/.test(a)) || 200)
+const AUTO_YES = args.includes('--yes')
+const RETRY_FAILED = args.includes('--retry-failed')
 
-const BASE = [
-  { name: '공허', emoji: '⬛' },
-  { name: '불꽃', emoji: '🔥' },
-  { name: '점토', emoji: '🧱' },
-  { name: '조류', emoji: '💧' },
-]
+const combosSrc = readFileSync(resolve(root, 'src/data/combos.ts'), 'utf8')
+const initialSrc = readFileSync(resolve(root, 'src/data/initial.ts'), 'utf8')
+const { concepts, hardPairs } = parseCombosGraph(combosSrc, initialSrc)
+const queue = buildPreloadQueue(concepts, hardPairs, 3)
 
-const HARD = [
-  ['공허', '불꽃', '혼돈', '🌀'],
-  ['불꽃', '점토', '생명', '🌱'],
-  ['공허', '점토', '무덤', '🪦'],
-  ['조류', '불꽃', '증기', '💨'],
-  ['조류', '점토', '늪', '🫧'],
-  ['조류', '공허', '심연', '🌊'],
-]
+const dest = resolve(root, 'src/data/preload.json')
+const statePath = resolve(root, 'scripts/.preload-state.json')
 
-function pairKey(a, b) {
-  return [a, b].sort().join('+')
+const existing = existsSync(dest)
+  ? JSON.parse(readFileSync(dest, 'utf8'))
+  : {}
+const state = existsSync(statePath)
+  ? JSON.parse(readFileSync(statePath, 'utf8'))
+  : { completed: [], failed: [], lastRun: null }
+
+const completedSet = new Set(state.completed)
+const failedSet = new Set(RETRY_FAILED ? [] : state.failed)
+
+const pending = queue.filter(({ a, b, key }) => {
+  const ck = cacheKey(a, b)
+  if (existing[ck] || completedSet.has(ck)) return false
+  if (failedSet.has(ck)) return false
+  return true
+})
+
+const toRun = pending.slice(0, LIMIT)
+const estMs = toRun.length * 9400
+const estMin = Math.ceil(estMs / 60000)
+
+console.log('=== Preload Plan ===')
+console.log(`Proxy: ${PROXY_URL}`)
+console.log(`Hard table pairs (skip): ${hardPairs.size}`)
+console.log(`Concepts in graph: ${concepts.size}`)
+console.log(`Queue (non-hard, depth≤3): ${queue.length}`)
+console.log(`Already cached: ${Object.keys(existing).length}`)
+console.log(`Pending this run: ${toRun.length} (limit ${LIMIT})`)
+console.log(`Est. time: ~${estMin} min (${toRun.length} × ~9s)`)
+console.log(`Est. cost: model-dependent (~${toRun.length} API calls)`)
+
+async function confirm() {
+  if (AUTO_YES || toRun.length === 0) return true
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  const answer = await new Promise((res) => rl.question('Continue? [y/N] ', res))
+  rl.close()
+  return /^y(es)?$/i.test(answer.trim())
 }
 
-function cacheKey(a, b) {
-  return `${pairKey(a, b)}||`
-}
-
-async function callProxy(a, b) {
-  const T = 72
-  const messages = [
-    {
-      role: 'system',
-      content: `당신은 개념 조합 판정기다. JSON 객체 하나만 출력.
-{"name":"한국어 2~12자","emoji":"이모지 1개","chaos":0,"plausibility":0,"narrative":0,"contagion":0,"pillar":"substance|quantity|quality|time","contaminant":"명사 1개","chronicle":"등장 기록 한 문장."}
-합은 정확히 ${T}.`,
-    },
-    { role: 'user', content: `A: ${a}\nB: ${b}\n총량 T: ${T}` },
-  ]
+async function callProxy(a, b, T) {
+  const messages = buildPreloadMessages(a, b, T)
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 9000)
   try {
@@ -76,64 +102,48 @@ async function callProxy(a, b) {
   }
 }
 
+function saveAll(out, st) {
+  writeFileSync(dest, JSON.stringify(out, null, 2), 'utf8')
+  writeFileSync(statePath, JSON.stringify(st, null, 2), 'utf8')
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-const known = new Map()
-for (const c of BASE) known.set(c.name, c)
-for (const [, , name, emoji] of HARD) known.set(name, { name, emoji })
-
-const queue = []
-const names = [...known.keys()]
-for (let i = 0; i < names.length; i++) {
-  for (let j = i + 1; j < names.length; j++) {
-    queue.push([names[i], names[j]])
-  }
+function onExit() {
+  saveAll(existing, state)
+  console.log('\n(state saved — rerun to resume)')
+  process.exit(130)
 }
 
-// BFS 깊이 2: hard 결과끼리도 한 번 더
-const depth2 = HARD.map((h) => h[2])
-for (let i = 0; i < depth2.length; i++) {
-  for (let j = i + 1; j < depth2.length; j++) {
-    queue.push([depth2[i], depth2[j]])
-  }
-  for (const b of BASE) {
-    queue.push([depth2[i], b.name])
-  }
+process.on('SIGINT', onExit)
+
+if (!(await confirm())) {
+  console.log('Aborted.')
+  process.exit(0)
 }
 
-const out = {}
 let done = 0
-const uniq = new Map()
-for (const [a, b] of queue) {
-  const k = cacheKey(a, b)
-  if (!uniq.has(k)) uniq.set(k, [a, b])
-}
-
-for (const [key, [a, b]] of uniq) {
-  if (done >= LIMIT) break
+for (const { a, b } of toRun) {
+  const ck = cacheKey(a, b)
+  const T = comboT(concepts, a, b, 0)
   try {
-    const result = await callProxy(a, b)
-    out[key] = {
-      name: String(result.name || '').slice(0, 20),
-      emoji: String(result.emoji || '❔').slice(0, 4),
-      chaos: Number(result.chaos) || 0,
-      plausibility: Number(result.plausibility) || 0,
-      narrative: Number(result.narrative) || 0,
-      contagion: Number(result.contagion) || 0,
-      pillar: result.pillar || 'substance',
-      contaminant: String(result.contaminant || '').slice(0, 8),
-      chronicle: String(result.chronicle || '').slice(0, 90),
-    }
+    const raw = await callProxy(a, b, T)
+    existing[ck] = normalizeEntry(raw, T)
+    state.completed.push(ck)
+    state.failed = state.failed.filter((k) => k !== ck)
     done += 1
-    console.log(`[${done}/${LIMIT}] ${a}+${b} → ${out[key].name}`)
+    console.log(`[${done}/${toRun.length}] T=${T} ${a}+${b} → ${existing[ck].name}`)
+    saveAll(existing, state)
     await sleep(400)
   } catch (err) {
     console.warn(`skip ${a}+${b}:`, err.message || err)
+    if (!state.failed.includes(ck)) state.failed.push(ck)
+    saveAll(existing, state)
   }
 }
 
-const dest = resolve(root, 'src/data/preload.json')
-writeFileSync(dest, JSON.stringify(out, null, 2), 'utf8')
-console.log(`Wrote ${Object.keys(out).length} entries → ${dest}`)
+state.lastRun = new Date().toISOString()
+saveAll(existing, state)
+console.log(`Wrote ${Object.keys(existing).length} total entries → ${dest}`)
