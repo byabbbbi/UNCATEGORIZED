@@ -1,41 +1,85 @@
 # UNCATEGORIZED
 
-**[▶ 플레이하기](https://byabbbbi.github.io/UNCATEGORIZED/)** — 플레이가 LLM을 개조한다.
+분류할 수 없는 개념을 조합하고 선포해, 세계를 유지하는 여덟 범주를 흔드는 단어 조합 로그라이크.
+
+**[▶ 지금 플레이하기 — https://byabbbbi.github.io/UNCATEGORIZED/](https://byabbbbi.github.io/UNCATEGORIZED/)**
 
 ![UNCATEGORIZED](docs/banner.png)
 
-*RES SINE CATEGORIA* — 네 기둥이 지켜 온 분류 대장에서, 개념을 조합·선포하며 세계의 범주를 무너뜨린다. 무너진 기둥은 생성 규칙을 바꿔, 같은 조합도 다른 결과를 낸다.
+*RES SINE CATEGORIA* — 카드를 겹쳐 새 개념을 만들고, 그 개념을 선택한 기둥에 선포한다. 선포가 누적되어 신이 사임하면 해당 범주의 붕괴 규칙이 LLM 시스템 프롬프트에 영구히 추가된다. 이후에는 세계 상태가 캐시 키와 생성 규칙에 함께 반영되므로 같은 조합도 다른 세계에서 다른 결과로 다시 기록될 수 있다.
 
-## 플레이
+## 조작
 
-1. [배포 URL](https://byabbbbi.github.io/UNCATEGORIZED/)을 연다  
-2. **처음부터** 또는 **붕괴된 세계에서**를 고른다  
-3. 카드를 드래그해 겹치면 조합, 제단(ARA)에 올리면 선포
+| 행동 | 실제 조작 |
+| --- | --- |
+| 조합 | 캔버스의 카드를 드래그해 다른 카드 위에 겹친다. 여러 조합을 동시에 처리할 수 있다. |
+| 카드 복제 | 처리 중이거나 검열된 카드가 아닌 카드를 더블클릭한다. 같은 개념의 카드가 오른쪽 아래에 하나 더 생긴다. |
+| 판례 대장 | 카드를 클릭한다. 하단 스트립에 부모 조합, 발견 당시 세계 상태, 파생 개념, 기둥·파괴력과 개념의 연대기가 고정 표시된다. |
+| 대장 · CODEX | `Tab`으로 열고 닫는다. 검색·정렬 후 개념을 클릭하면 캔버스에 다시 놓인다. |
+| 선포 | 우측에서 대상 기둥을 고른 뒤 카드를 중앙 제단 `ARA`에 드래그한다. 시대당 최대 3회다. |
+| 시대 마감 | 캔버스 우측 상단의 `시대 마감`을 누른다. 사건을 정산하고 다음 시대로 넘어간다. |
+| 분실물 보관소 | 하단의 보관소를 열고 파편 10개로 개념 하나를 회수한다. |
+| 정리 | 캔버스 상단의 `정리`를 눌러 흩어진 카드를 격자에 재배치한다. |
+
+## 네 가지 시작 모드
+
+| 모드 | 설명 |
+| --- | --- |
+| 처음부터 | 기본 원소 4개, 정합성 100, 안정도 100인 여덟 기둥으로 새 일반 세계를 연다. 기존 일반 런 저장은 지운다. |
+| 이어하기 | 저장 버전 2의 일반 런이 있을 때만 표시된다. 개념·계보·사건 진행도와 세계 상태를 복원한다. |
+| 붕괴된 세계에서 | 제4시대, 측정과 본질 기둥 붕괴, 「먼지」 오염 승격, 파편 10개인 고정 데모에서 시작한다. |
+| 오늘의 세계 | KST 날짜를 시드로 시작 원소 4개, 초기 오염과 0~1개 붕괴 기둥을 정한다. 같은 날에는 같은 초기 세계와 사건 순서를 쓰며 일반 런과 별도로 저장한다. |
+
+## 챌린지 기간(2026.08.04~08.26) 신규 개발 내역
+
+아래 표는 현재 저장소의 커밋과 PR을 대조한 결과다. 연속 기능 브랜치였던 PR #2~#5는 개별 PR을 닫은 뒤 해당 커밋을 `main`의 병합 커밋으로 통합했고, PR #6은 문서 작성 시점에 열려 있다.
+
+| 기능 | PR/커밋 | Codex 작업 여부 |
+| --- | --- | --- |
+| 생성 품질·저장 기반 정비: 조어 필터와 리롤 1회, 하드테이블 406건, 런 저장·이어하기, 초반 배율, 띄어쓰기 지원 | [`642f8e4`](https://github.com/byabbbbi/UNCATEGORIZED/commit/642f8e4429971817ca14df7d425d7c020cdb196f) · [`30e5b23`](https://github.com/byabbbbi/UNCATEGORIZED/commit/30e5b23b928e8f0ea2064e3680bcf8eff25b219f) · [`67ca727`](https://github.com/byabbbbi/UNCATEGORIZED/commit/67ca7275f7348080f8b567c67869cec360b2ab80) | 예 — Codex 구현·검증 |
+| 오늘의 세계: KST 날짜 시드, 결정적 초기 세계, 일일 저장 분리 | [PR #1](https://github.com/byabbbbi/UNCATEGORIZED/pull/1) · [`1ce14b3`](https://github.com/byabbbbi/UNCATEGORIZED/commit/1ce14b30ec7fd197dfa51f1b001996961ebc2281) | 예 — Codex 구현·검증 |
+| 연대기 PNG 내보내기: Canvas 1080×1920 기록물, 폰트 대기, 긴 연대기 압축 | [PR #2](https://github.com/byabbbbi/UNCATEGORIZED/pull/2) · [`3a4eac3`](https://github.com/byabbbbi/UNCATEGORIZED/commit/3a4eac31d8daa437ab2e20708be279359e95e453) | 예 — Codex 구현·검증 |
+| 조합 품질 개선 + 카드 복제: 오염 세계 하드테이블, concat 검출, 10자 제한, 더블클릭 복제 | [PR #3](https://github.com/byabbbbi/UNCATEGORIZED/pull/3) · [`ec3efcd`](https://github.com/byabbbbi/UNCATEGORIZED/commit/ec3efcdbbd7b9185b8a0711348fd009f9417da66) | 예 — Codex 구현·검증 |
+| 카드 이모지 1개 제한: `Intl.Segmenter` 그래핌 정규화와 CSS 안전망 | [PR #4](https://github.com/byabbbbi/UNCATEGORIZED/pull/4) · [`0791b45`](https://github.com/byabbbbi/UNCATEGORIZED/commit/0791b4546a0ee9c072099c5f9a2f7a5098fbe5dd) | 예 — Codex 구현·검증 |
+| 8기둥 복원: 관계·장소·상태·작용과 붕괴 규칙·대사·폴백·6/8 무구별 조건 | [PR #5](https://github.com/byabbbbi/UNCATEGORIZED/pull/5) · [`8f794c3`](https://github.com/byabbbbi/UNCATEGORIZED/commit/8f794c36299f27c25fdb25e95fa46e6d1045906d) | 예 — Codex 구현·검증 |
+| 판례 대장 + 사건부: 조합 계보, 시대별 결정적 과제, 저장 버전 2 | [PR #6](https://github.com/byabbbbi/UNCATEGORIZED/pull/6) · [`8297aa7`](https://github.com/byabbbbi/UNCATEGORIZED/commit/8297aa7be803118f610fe5483351e26ee2acbdba) | 예 — Codex 구현·검증 |
+
+### 기존 개발분
+
+초기 조합 엔진, 4기둥 구조, 선포·붕괴·세 엔딩, 분실물 보관소, 기본 밸런스 수식과 분류 대장 UI는 2026년 8월 10일의 기존 해커톤 개발분이다. 시작점은 [`afe1173`](https://github.com/byabbbbi/UNCATEGORIZED/commit/afe1173276aa6e8e20727eb85778502ed3042b89)이며, 위 신규 개발 표와 구분한다. 이번 기간에는 그 기반을 없애지 않고 저장·생성 품질을 보강하고 8기둥 원안과 일일·계보·사건·내보내기 기능을 확장했다.
+
+## 기술 스택과 AI 구조
+
+React 19, TypeScript 6, Vite 8, Zustand 5, Motion 13으로 만든 정적 SPA다. 조합 결과 캐시는 `idb-keyval` 기반 IndexedDB, 런 진행은 `localStorage`, 효과음은 `zzfx`, 연대기 이미지는 외부 이미지 라이브러리 없이 Canvas API를 사용한다. 런타임 LLM 호출은 클라이언트에 키를 두지 않고 프록시를 거치며, 모델과 호출 제한은 서버측에서 강제한다.
+
+생성은 실패를 다음 단계가 이어받는 5단 체인이다.
+
+1. **하드테이블 406건** — 붕괴 전 조합을 즉시 반환하고, 활성 오염이 있으면 결정적 30% 이름 후처리를 적용한다.
+2. **IndexedDB 캐시** — 정렬된 조합쌍·붕괴 기둥·활성 오염이 같은 결과를 재사용한다.
+3. **프리로드 JSON** — 배포 전에 준비한 조합 결과를 조회한다.
+4. **프록시 경유 LLM** — 현행 세계 규칙을 넣은 시스템 프롬프트로 생성하고 부적절한 이름은 한 번만 다시 생성한다.
+5. **LEXICON 로컬 폴백** — 네트워크·20초 타임아웃·파싱·품질 검사 실패를 결정적 생성으로 수습한다.
 
 ## 로컬 실행
 
+Vite 8 기준 Node.js `20.19+` 또는 `22.12+`가 필요하다.
+
 ```bash
+git clone https://github.com/byabbbbi/UNCATEGORIZED.git
+cd UNCATEGORIZED
 npm install
 npm run dev
 ```
 
-## 배포
+검증 명령:
 
 ```bash
-npm run deploy
+npm run build
+npm run validate:combos
 ```
 
-GitHub Pages는 `gh-pages` 브랜치를 사용한다 (`base: /UNCATEGORIZED/`).
+## 문서
 
-## 프리로드 (선택)
-
-```bash
-node scripts/preload.mjs 80
-npm run deploy
-```
-
-## Cloudflare 워커 메모 (수동)
-
-- `MODEL_ID`: 추론(reasoning/thinking) 모델 말고 **빠른 instruct** 계열로 둔다.
-- 워커 코드의 `max_tokens`는 **400 → 200**으로 줄인다. JSON 한 개면 충분하고 응답이 빨라진다.
-- 변수·코드 수정 후 워커 **Deploy** 필수. 확인: 워커 URL GET → `{"ok":true,"model":"...","key":"set"}`.
+- [게임 가이드](docs/GAME_GUIDE.md) — 규칙, 8기둥, 모드와 3분 관람 경로
+- [AI 기술 문서](docs/AI_TECH.md) — 생성 체인, 역할 경계, 붕괴 규칙과 프롬프트 전문
+- [Codex 협업 기록](docs/CODEX_COLLABORATION.md) — 제출 폼용 800자 요약과 상세 개발 기록
