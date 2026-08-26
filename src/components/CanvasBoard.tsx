@@ -13,7 +13,7 @@ import { sfx } from '../sfx'
 import { MAX_PROCLAMATIONS_PER_ERA } from '../data/initial'
 import { ALTAR_R, CARD_H, CARD_W } from '../types'
 import type { PillarKey } from '../types'
-import { pillarsAliveMap } from '../utils/pillars'
+import { pillarStabilityMap } from '../utils/pillars'
 import './CanvasBoard.css'
 
 function cardTiltDeg(conceptId: string, collapsed: number): number {
@@ -51,7 +51,7 @@ function CanvasCard({
   conceptId,
   x,
   y,
-  alive,
+  pillarStability,
   isDiscovery,
   selected,
   reject,
@@ -65,7 +65,7 @@ function CanvasCard({
   conceptId: string
   x: number
   y: number
-  alive: Record<PillarKey, boolean>
+  pillarStability: Record<PillarKey, number>
   isDiscovery: boolean
   selected: boolean
   reject: boolean
@@ -126,7 +126,7 @@ function CanvasCard({
             ? { scale: 0.7, opacity: 0 }
             : false
       }
-      animate={{ scale: 1, opacity: 1, rotate: tilt }}
+      animate={{ scale: selected ? 1.03 : 1, opacity: 1, rotate: tilt }}
       transition={{ type: 'spring', stiffness: 460, damping: 19 }}
       onDragStart={() => {
         dragging.current = true
@@ -183,7 +183,7 @@ function CanvasCard({
       {revealDiscovery && <span className="result-burst__ring" />}
       <IndexCard
         concept={concept}
-        pillarsAlive={alive}
+        pillarStability={pillarStability}
         isDiscovery={isDiscovery || revealDiscovery}
         selected={selected || !!rerecord}
         reject={reject}
@@ -221,7 +221,7 @@ export function CanvasBoard() {
   const coherence = useGameStore((s) => s.coherence)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const collapsedCount = useGameStore((s) => s.collapsed.length)
-  const alive = pillarsAliveMap(pillars)
+  const pillarStability = pillarStabilityMap(pillars)
   const boardRef = useRef<HTMLElement>(null)
 
   const initialDiscoveries = new Set(
@@ -314,7 +314,7 @@ export function CanvasBoard() {
               conceptId={inst.conceptId}
               x={inst.x}
               y={inst.y}
-              alive={alive}
+              pillarStability={pillarStability}
               isDiscovery={initialDiscoveries.has(inst.conceptId)}
               selected={selectedInstanceId === inst.instanceId}
               reject={fx.rejectInstanceId === inst.instanceId}

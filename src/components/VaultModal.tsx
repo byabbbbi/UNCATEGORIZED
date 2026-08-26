@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
 import { IndexCard } from './IndexCard'
 import { GACHA_KO, GACHA_LATIN } from '../data/gachaPool'
-import { pillarsAliveMap } from '../utils/pillars'
+import { pillarStabilityMap } from '../utils/pillars'
 import './VaultModal.css'
 
 export function VaultModal() {
@@ -15,7 +15,7 @@ export function VaultModal() {
   const concepts = useGameStore((s) => s.concepts)
   const pillars = useGameStore((s) => s.pillars)
 
-  const alive = pillarsAliveMap(pillars)
+  const pillarStability = pillarStabilityMap(pillars)
 
   const revealed = reveal
     ? concepts.find((c) => c.id === reveal.conceptId)
@@ -82,7 +82,7 @@ export function VaultModal() {
                     )}
                     <IndexCard
                       concept={revealed}
-                      pillarsAlive={alive}
+                      pillarStability={pillarStability}
                       isDiscovery={reveal.grade !== 'registered'}
                     />
                     <p className="vault__grade">
