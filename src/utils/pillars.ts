@@ -10,3 +10,14 @@ export function pillarsAliveMap(
     ]),
   ) as Record<PillarKey, boolean>
 }
+
+export function pillarStabilityMap(
+  pillars: Pick<Pillar, 'key' | 'stability'>[],
+): Record<PillarKey, number> {
+  return Object.fromEntries(
+    PILLAR_KEYS.map((key) => [
+      key,
+      pillars.find((pillar) => pillar.key === key)?.stability ?? 0,
+    ]),
+  ) as Record<PillarKey, number>
+}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
 import { AnimatedNumber } from './AnimatedNumber'
+import { PillarTooltip } from './PillarTooltip'
 import { Typewriter } from './Typewriter'
 import { useGameStore } from '../store/gameStore'
 import {
@@ -8,7 +9,6 @@ import {
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
   PILLAR_LATIN,
-  PILLAR_QUESTIONS,
 } from '../data/initial'
 import type { PillarKey } from '../types'
 import { pillarPhase } from '../types'
@@ -122,34 +122,40 @@ function PillarRow({
   const phase = pillarPhase(stability)
   return (
     <li>
-      <button
-        type="button"
-        className={`pillar-row${selected ? ' is-selected' : ''}${collapsed ? ' is-collapsed' : ''} is-${phase}`}
-        disabled={collapsed}
-        onClick={onSelect}
-        title={PILLAR_QUESTIONS[pillarKey]}
+      <PillarTooltip
+        pillarKey={pillarKey}
+        stability={stability}
+        placement="left"
+        className="pillar-row-tooltip"
       >
-        <div className="pillar-row__meta">
-          <strong className="pillar-row__latin">
-            {PILLAR_LATIN[pillarKey]}
-            <span className="pillar-row__ko"> · {PILLAR_KO[pillarKey]}</span>
-          </strong>
-          <span className="pillar-row__blocks" aria-hidden>
-            {blocks(stability)}
-          </span>
-          <em>
-            <AnimatedNumber value={stability} digits={0} />
-          </em>
-        </div>
-        <div className="pillar-row__track">
-          <motion.div
-            className="pillar-row__fill"
-            initial={false}
-            animate={{ width: `${Math.max(0, Math.min(100, stability))}%` }}
-            transition={{ type: 'spring', stiffness: 180, damping: 18, delay: 0.18 }}
-          />
-        </div>
-      </button>
+        <button
+          type="button"
+          className={`pillar-row${selected ? ' is-selected' : ''}${collapsed ? ' is-collapsed' : ''} is-${phase}`}
+          disabled={collapsed}
+          onClick={onSelect}
+        >
+          <div className="pillar-row__meta">
+            <strong className="pillar-row__latin">
+              {PILLAR_LATIN[pillarKey]}
+              <span className="pillar-row__ko"> · {PILLAR_KO[pillarKey]}</span>
+            </strong>
+            <span className="pillar-row__blocks" aria-hidden>
+              {blocks(stability)}
+            </span>
+            <em>
+              <AnimatedNumber value={stability} digits={0} />
+            </em>
+          </div>
+          <div className="pillar-row__track">
+            <motion.div
+              className="pillar-row__fill"
+              initial={false}
+              animate={{ width: `${Math.max(0, Math.min(100, stability))}%` }}
+              transition={{ type: 'spring', stiffness: 180, damping: 18, delay: 0.18 }}
+            />
+          </div>
+        </button>
+      </PillarTooltip>
     </li>
   )
 }

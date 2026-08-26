@@ -44,10 +44,13 @@ export default function App() {
   const fx = useGameStore((s) => s.fx)
   const codexOpen = useGameStore((s) => s.codexOpen)
   const toggleMute = useGameStore((s) => s.toggleMute)
+  const returnToTitle = useGameStore((s) => s.returnToTitle)
   const reset = useGameStore((s) => s.reset)
   const openCodex = useGameStore((s) => s.openCodex)
   const closeCodex = useGameStore((s) => s.closeCodex)
-  const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmation, setConfirmation] = useState<'title' | 'reset' | null>(
+    null,
+  )
 
   const discoveryCount = discoveredIds.length
   const remainingDeclares = Math.max(
@@ -185,7 +188,14 @@ export default function App() {
             <button
               type="button"
               className="topbar__reset"
-              onClick={() => setConfirmReset(true)}
+              onClick={() => setConfirmation('title')}
+            >
+              타이틀
+            </button>
+            <button
+              type="button"
+              className="topbar__reset"
+              onClick={() => setConfirmation('reset')}
             >
               초기화
             </button>
@@ -204,14 +214,14 @@ export default function App() {
       </motion.div>
 
       <AnimatePresence>
-        {confirmReset && (
+        {confirmation && (
           <motion.div
             className="confirm-reset"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmReset(false)
+              if (e.target === e.currentTarget) setConfirmation(null)
             }}
           >
             <motion.div
@@ -220,14 +230,20 @@ export default function App() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 8, opacity: 0 }}
               role="dialog"
-              aria-label="초기화 확인"
+              aria-label={
+                confirmation === 'title' ? '타이틀 이동 확인' : '초기화 확인'
+              }
             >
-              <p>이 세계의 모든 기록이 사라집니다. 계속할까요?</p>
+              <p>
+                {confirmation === 'title'
+                  ? '타이틀로 돌아갑니다. 진행 상황은 저장됩니다.'
+                  : '이 세계의 모든 기록이 사라집니다. 계속할까요?'}
+              </p>
               <div className="confirm-reset__actions">
                 <button
                   type="button"
                   className="confirm-reset__cancel"
-                  onClick={() => setConfirmReset(false)}
+                  onClick={() => setConfirmation(null)}
                 >
                   취소
                 </button>
@@ -235,11 +251,13 @@ export default function App() {
                   type="button"
                   className="confirm-reset__ok"
                   onClick={() => {
-                    setConfirmReset(false)
-                    reset()
+                    const action = confirmation
+                    setConfirmation(null)
+                    if (action === 'title') returnToTitle()
+                    else reset()
                   }}
                 >
-                  초기화
+                  {confirmation === 'title' ? '타이틀' : '초기화'}
                 </button>
               </div>
             </motion.div>

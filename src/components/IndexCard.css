@@ -28,6 +28,10 @@
 .index-card.is-selected {
   outline: 2px solid var(--seal);
   outline-offset: 1px;
+  border-color: var(--seal);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--seal) 16%, transparent),
+    0 2px 8px rgba(31, 38, 33, 0.16);
 }
 
 .index-card.is-rerecord-seal {
@@ -60,10 +64,15 @@
   filter: grayscale(1);
 }
 
-.seal {
+.seal-tooltip {
   position: absolute;
   top: 5px;
   right: 5px;
+  z-index: 2;
+}
+
+.seal {
+  position: relative;
   width: 26px;
   height: 26px;
   border-radius: 50%;

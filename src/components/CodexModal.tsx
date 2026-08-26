@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { IndexCard } from './IndexCard'
 import { useGameStore } from '../store/gameStore'
 import type { Concept } from '../types'
-import { pillarsAliveMap } from '../utils/pillars'
+import { pillarStabilityMap } from '../utils/pillars'
 import './CodexModal.css'
 
 type SortMode = 'recent' | 'name' | 'depth'
@@ -22,7 +22,7 @@ export function CodexModal() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortMode>('recent')
   const inputRef = useRef<HTMLInputElement>(null)
-  const alive = pillarsAliveMap(pillars)
+  const pillarStability = pillarStabilityMap(pillars)
 
   useEffect(() => {
     if (!open) return
@@ -141,7 +141,7 @@ export function CodexModal() {
                   >
                     <IndexCard
                       concept={c}
-                      pillarsAlive={alive}
+                      pillarStability={pillarStability}
                       isDiscovery={first}
                       dimmed={!!c.deleted}
                     />

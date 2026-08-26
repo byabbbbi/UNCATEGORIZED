@@ -37,6 +37,7 @@ import { firstGrapheme } from '../utils/emoji'
 import {
   clearDailySave,
   clearSave,
+  flushSave,
   loadDailyRun,
   loadRun,
   scheduleSave,
@@ -1100,8 +1101,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   returnToTitle: () => {
-    if (get().gameMode === 'daily') clearDailySave()
-    else clearSave()
+    const current = get()
+    if (current.screen === 'play') flushSave(current)
     set(titleState())
   },
 

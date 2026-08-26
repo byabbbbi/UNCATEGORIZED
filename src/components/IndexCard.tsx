@@ -1,12 +1,13 @@
 import type { CSSProperties } from 'react'
 import { motion } from 'motion/react'
+import { PillarTooltip } from './PillarTooltip'
 import type { Concept, PillarKey } from '../types'
 import { SEAL_GLYPH, SEAL_TITLE, sealOf } from '../types'
 import './IndexCard.css'
 
 interface Props {
   concept: Concept
-  pillarsAlive: Record<PillarKey, boolean>
+  pillarStability: Record<PillarKey, number>
   isDiscovery?: boolean
   selected?: boolean
   dimmed?: boolean
@@ -20,7 +21,7 @@ interface Props {
 
 export function IndexCard({
   concept,
-  pillarsAlive,
+  pillarStability,
   isDiscovery = false,
   selected = false,
   dimmed = false,
@@ -32,13 +33,9 @@ export function IndexCard({
   onClick,
 }: Props) {
   const seal = sealOf(concept)
-  const alive = pillarsAlive[seal]
+  const stability = pillarStability[seal]
+  const alive = stability > 0
   const glyph = concept.deleted ? '██' : alive ? SEAL_GLYPH[seal] : '✕'
-  const sealTitle = concept.deleted
-    ? undefined
-    : alive
-      ? SEAL_TITLE[seal]
-      : '범주 반납됨'
 
   return (
     <motion.div
@@ -65,12 +62,19 @@ export function IndexCard({
       transition={reject ? { duration: 0.24 } : undefined}
       whileTap={{ scale: 0.96 }}
     >
-      <span
-        className={`seal${!alive || concept.deleted ? ' is-void' : ''}`}
-        title={sealTitle}
+      <PillarTooltip
+        pillarKey={seal}
+        stability={stability}
+        placement="bottom"
+        className="seal-tooltip"
       >
-        {glyph}
-      </span>
+        <span
+          className={`seal${!alive || concept.deleted ? ' is-void' : ''}`}
+          aria-label={`${SEAL_TITLE[seal]} 도장`}
+        >
+          {glyph}
+        </span>
+      </PillarTooltip>
       <span className="index-card__emoji" aria-hidden>
         {concept.emoji}
       </span>
