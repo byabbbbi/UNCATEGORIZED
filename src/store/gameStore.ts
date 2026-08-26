@@ -16,6 +16,7 @@ import {
   PILLAR_KO,
 } from '../data/initial'
 import { COLLAPSE_RULES } from '../data/rules'
+import { createEraCase, createWorldSeed } from '../data/caseFiles'
 import { getDailyWorld, type DailyWorldConfig } from '../data/dailyWorld'
 import { pickGodLine } from '../data/godlines'
 import {
@@ -45,6 +46,7 @@ import type {
   ChronicleEntry,
   Concept,
   EndingKind,
+  EraCaseState,
   FxState,
   GameMode,
   Pillar,
@@ -65,6 +67,7 @@ import {
 let chronicleSeq = 0
 let instanceSeq = 0
 let conceptSeq = 0
+const DEMO_WORLD_SEED = hashStr('collapsed-demo-v1')
 
 function entry(era: number, text: string): ChronicleEntry {
   chronicleSeq += 1
@@ -122,6 +125,8 @@ export interface GameStore {
   pillars: Pillar[]
   coherence: number
   era: number
+  worldSeed: number
+  eraCase: EraCaseState
   shards: number
   collapsed: PillarKey[]
   collapsedRules: string[]
@@ -196,6 +201,7 @@ function restorePillars(saved: Pillar[], collapsed: PillarKey[]): Pillar[] {
 function createPlayState(opts?: {
   demo?: boolean
   daily?: DailyWorldConfig
+  worldSeed?: number
 }): Omit<
   GameStore,
   | 'startFresh'
@@ -229,6 +235,10 @@ function createPlayState(opts?: {
   instanceSeq = 0
   conceptSeq = 0
 
+  const worldSeed =
+    opts?.daily?.seed ??
+    (opts?.demo ? DEMO_WORLD_SEED : opts?.worldSeed ?? createWorldSeed())
+
   if (opts?.demo) {
     const concepts = buildDemoConcepts()
     const collapsed = [...DEMO_SAVE.collapsed]
@@ -245,6 +255,8 @@ function createPlayState(opts?: {
       })),
       coherence: DEMO_SAVE.coherence,
       era: DEMO_SAVE.era,
+      worldSeed,
+      eraCase: createEraCase(worldSeed, DEMO_SAVE.era, collapsed.length),
       shards: DEMO_SAVE.shards,
       collapsed,
       collapsedRules: demoCollapsedRules(),
@@ -293,6 +305,8 @@ function createPlayState(opts?: {
       })),
       coherence: 100,
       era: 1,
+      worldSeed,
+      eraCase: createEraCase(worldSeed, 1, collapsed.length),
       shards: 0,
       collapsed,
       collapsedRules: collapsed.map((key) => COLLAPSE_RULES[key]),
@@ -331,6 +345,8 @@ function createPlayState(opts?: {
     pillars: INITIAL_PILLARS.map((p) => ({ ...p })),
     coherence: 100,
     era: 1,
+    worldSeed,
+    eraCase: createEraCase(worldSeed, 1, 0),
     shards: 0,
     collapsed: [],
     collapsedRules: [],
@@ -365,6 +381,100 @@ function activeContaminants(counts: Record<string, number>): string[] {
   return Object.entries(counts)
     .filter(([, n]) => n >= 3)
     .map(([k]) => k)
+}
+
+function restoreSequences(
+  concepts: Concept[],
+  instances: CanvasInstance[],
+  chronicle: ChronicleEntry[],
+) {
+  instanceSeq = instances.reduce((highest, item) => {
+    const value = Number(item.instanceId.match(/-(\d+)$/)?.[1] ?? 0)
+    return Math.max(highest, value)
+  }, 0)
+  conceptSeq = concepts.reduce((highest, item) => {
+    const value = Number(item.id.match(/^g-(\d+)-/)?.[1] ?? 0)
+    return Math.max(highest, value)
+  }, 0)
+  chronicleSeq = chronicle.reduce((highest, item) => {
+    const value = Number(item.id.match(/^c-(\d+)$/)?.[1] ?? 0)
+    return Math.max(highest, value)
+  }, 0)
+}
+
+function advanceCaseProgress(
+  eraCase: EraCaseState,
+  progress: number,
+  proclaimedPillars = eraCase.proclaimedPillars,
+): { eraCase: EraCaseState; justCompleted: boolean } {
+  if (eraCase.completed) return { eraCase, justCompleted: false }
+  const nextProgress = Math.min(eraCase.target, progress)
+  const completed = nextProgress >= eraCase.target
+  return {
+    eraCase: {
+      ...eraCase,
+      progress: nextProgress,
+      completed,
+      proclaimedPillars,
+    },
+    justCompleted: completed,
+  }
+}
+
+function caseAfterCombination(
+  eraCase: EraCaseState,
+  a: Concept,
+  b: Concept,
+  result: Awaited<ReturnType<typeof generate>>,
+  resultDepth: number,
+  isDiscovery: boolean,
+  contaminants: string[],
+): { eraCase: EraCaseState; justCompleted: boolean } {
+  if (eraCase.completed) return { eraCase, justCompleted: false }
+
+  let increment = false
+  if (eraCase.id === 'depth') {
+    increment = isDiscovery && resultDepth >= 2 + eraCase.era
+  } else if (eraCase.id === 'contaminated') {
+    increment =
+      isDiscovery &&
+      contaminants.some((keyword) => result.name.includes(keyword))
+  } else if (eraCase.id === 'selfCombine') {
+    increment = a.id === b.id
+  } else if (eraCase.id === 'discoveries') {
+    increment = isDiscovery
+  } else if (eraCase.id === 'censored') {
+    increment = !!result.deleted
+  }
+
+  return increment
+    ? advanceCaseProgress(eraCase, eraCase.progress + 1)
+    : { eraCase, justCompleted: false }
+}
+
+function caseAfterProclamation(
+  eraCase: EraCaseState,
+  pillarKey: PillarKey,
+  destruction: number,
+): { eraCase: EraCaseState; justCompleted: boolean } {
+  if (eraCase.completed) return { eraCase, justCompleted: false }
+
+  if (eraCase.id === 'pillars') {
+    const proclaimedPillars = eraCase.proclaimedPillars.includes(pillarKey)
+      ? eraCase.proclaimedPillars
+      : [...eraCase.proclaimedPillars, pillarKey]
+    return advanceCaseProgress(
+      eraCase,
+      proclaimedPillars.length,
+      proclaimedPillars,
+    )
+  }
+
+  if (eraCase.id === 'destruction' && destruction >= 25) {
+    return advanceCaseProgress(eraCase, 1)
+  }
+
+  return { eraCase, justCompleted: false }
 }
 
 function worldOf(s: {
@@ -586,11 +696,13 @@ function declareOnAltar(instanceId: string) {
 
   const nextCoherence = Math.max(0, s.coherence - coherenceLoss)
   const nextShards = s.shards + shardsGained
+  const caseUpdate = caseAfterProclamation(s.eraCase, pillarKey, D)
 
   useGameStore.setState({
     pillars,
     coherence: nextCoherence,
     shards: nextShards,
+    eraCase: caseUpdate.eraCase,
     proclamationsThisEra: s.proclamationsThisEra + 1,
     chronicle: [...s.chronicle, line],
     instances: s.instances.filter((i) => i.instanceId !== instanceId),
@@ -608,6 +720,7 @@ function declareOnAltar(instanceId: string) {
   })
 
   sfx.declare()
+  if (caseUpdate.justCompleted) sfx.discover()
   if (shardsGained > 0) spawnShardFlights(shardsGained)
 
   if (!justCollapsed) {
@@ -648,6 +761,7 @@ function resolveSlot(
   result: Awaited<ReturnType<typeof generate>>,
   a: Concept,
   b: Concept,
+  combinationContaminants: string[],
 ) {
   const cur = useGameStore.getState()
   const slot = cur.instances.find((i) => i.instanceId === slotId)
@@ -662,6 +776,8 @@ function resolveSlot(
     (c) => c.name === result.name && !c.deleted === !result.deleted,
   )
   const isDiscovery = !existing
+  const resultDepth = Math.max(a.depth, b.depth) + 1
+  const discoveryContaminants = activeContaminants(cur.contaminantCounts)
 
   let concept: Concept
   if (existing) {
@@ -675,9 +791,19 @@ function resolveSlot(
       plausibility: result.plausibility,
       narrative: result.narrative,
       contagion: result.contagion,
-      depth: Math.max(a.depth, b.depth) + 1,
+      depth: resultDepth,
       pillar: result.pillar,
       contaminant: result.contaminant || undefined,
+      parents: [a.name, b.name],
+      bornAt: {
+        era: cur.era,
+        collapsed: cur.collapsed.length,
+        contaminant:
+          [...discoveryContaminants].sort().join(' · ') || null,
+      },
+      chronicle:
+        result.chronicle ||
+        `${result.name}${josa(result.name, ['이', '가'])} 목록에 추가되었다.`,
       deleted: result.deleted,
     }
   }
@@ -730,12 +856,22 @@ function resolveSlot(
   }
 
   const shardGain = isDiscovery && !result.deleted ? 1 : 0
+  const caseUpdate = caseAfterCombination(
+    cur.eraCase,
+    a,
+    b,
+    result,
+    resultDepth,
+    isDiscovery,
+    combinationContaminants,
+  )
 
   useGameStore.setState({
     concepts,
     discoveredIds,
     coherence,
     contaminantCounts,
+    eraCase: caseUpdate.eraCase,
     shards: cur.shards + shardGain,
     pending: restPending,
     codex,
@@ -773,7 +909,7 @@ function resolveSlot(
         : cur.fx,
   })
 
-  if (isRerecord || isDiscovery) sfx.discover()
+  if (caseUpdate.justCompleted || isRerecord || isDiscovery) sfx.discover()
   else sfx.combine()
 
   if (isDiscovery) {
@@ -843,9 +979,15 @@ function combineAt(
   const world = worldOf(s)
   const owned = new Set(s.concepts.map((c) => c.name))
   generate(a, b, world, owned)
-    .then((res) => resolveSlot(slotId, res, a, b))
+    .then((res) => resolveSlot(slotId, res, a, b, world.contaminants))
     .catch(() =>
-      resolveSlot(slotId, fallbackGenerate(a, b, world, owned), a, b),
+      resolveSlot(
+        slotId,
+        fallbackGenerate(a, b, world, owned),
+        a,
+        b,
+        world.contaminants,
+      ),
     )
 }
 
@@ -864,6 +1006,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
     const { save, cancelledProcessing } = loaded
+    restoreSequences(save.concepts, save.instances, save.chronicle)
     set({
       screen: 'play',
       gameMode: 'standard',
@@ -877,6 +1020,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pillars: restorePillars(save.pillars, save.collapsed),
       coherence: save.coherence,
       era: save.era,
+      worldSeed: save.worldSeed,
+      eraCase: save.eraCase,
       shards: save.shards,
       collapsed: save.collapsed,
       collapsedRules: save.collapsedRules,
@@ -914,6 +1059,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
     const { save, cancelledProcessing } = loaded
+    restoreSequences(save.concepts, save.instances, save.chronicle)
     set({
       screen: 'play',
       gameMode: 'daily',
@@ -927,6 +1073,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pillars: restorePillars(save.pillars, save.collapsed),
       coherence: save.coherence,
       era: save.era,
+      worldSeed: save.worldSeed,
+      eraCase: save.eraCase,
       shards: save.shards,
       collapsed: save.collapsed,
       collapsedRules: save.collapsedRules,
@@ -1124,34 +1272,88 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const s = get()
     if (s.fx.inputLocked || s.screen !== 'play') return
 
-    if (s.era >= MAX_ERA) {
-      if (s.collapsed.length >= INDISTINCT_COLLAPSE_THRESHOLD) {
-        triggerEnding('indistinct')
-      } else if (s.coherence <= 0) {
-        triggerEnding('blank')
-      } else {
-        set({
-          chronicle: [
-            ...s.chronicle,
-            entry(s.era, `제${s.era}시대가 닫혔다.`),
-          ],
-        })
-        triggerEnding('classified')
+    const noCollapseJustCompleted =
+      s.eraCase.id === 'noCollapse' &&
+      !s.eraCase.completed &&
+      s.collapsed.length === s.eraCase.collapsedAtStart
+    const settledCase = noCollapseJustCompleted
+      ? { ...s.eraCase, progress: 1, completed: true }
+      : s.eraCase
+    const rewarded = settledCase.completed
+    const settledChronicle = rewarded
+      ? [
+          ...s.chronicle,
+          entry(s.era, `제${s.era}시대 사건이 종결되었다.`),
+        ]
+      : s.chronicle
+
+    set({
+      eraCase: settledCase,
+      shards: s.shards + (rewarded ? 3 : 0),
+      chronicle: settledChronicle,
+      message: noCollapseJustCompleted
+        ? `제${s.era}시대 사건 종결 · 파편 +3`
+        : s.message,
+      fx: {
+        ...s.fx,
+        inputLocked: noCollapseJustCompleted,
+        shardPop: s.fx.shardPop + (rewarded ? 1 : 0),
+      },
+    })
+
+    if (noCollapseJustCompleted) sfx.discover()
+
+    const finishEra = () => {
+      const cur = get()
+      if (
+        cur.screen !== 'play' ||
+        cur.era !== s.era ||
+        cur.eraCase !== settledCase
+      ) {
+        return
       }
-      return
+
+      if (cur.era >= MAX_ERA) {
+        if (cur.collapsed.length >= INDISTINCT_COLLAPSE_THRESHOLD) {
+          triggerEnding('indistinct')
+        } else if (cur.coherence <= 0) {
+          triggerEnding('blank')
+        } else {
+          set({
+            chronicle: [
+              ...cur.chronicle,
+              entry(cur.era, `제${cur.era}시대가 닫혔다.`),
+            ],
+          })
+          triggerEnding('classified')
+        }
+        return
+      }
+
+      const nextEra = cur.era + 1
+      set({
+        era: nextEra,
+        eraCase: createEraCase(
+          cur.worldSeed,
+          nextEra,
+          cur.collapsed.length,
+        ),
+        coherence: cur.coherence + 8,
+        proclamationsThisEra: 0,
+        chronicle: [
+          ...cur.chronicle,
+          entry(
+            nextEra,
+            `제${cur.era}시대가 닫히고 제${nextEra}시대가 열린다. 정합성 +8.`,
+          ),
+        ],
+        message: `제${nextEra}시대 시작 (정합성 +8)`,
+        fx: { ...cur.fx, inputLocked: false },
+      })
     }
 
-    const nextEra = s.era + 1
-    set({
-      era: nextEra,
-      coherence: s.coherence + 8,
-      proclamationsThisEra: 0,
-      chronicle: [
-        ...s.chronicle,
-        entry(nextEra, `제${s.era}시대가 닫히고 제${nextEra}시대가 열린다. 정합성 +8.`),
-      ],
-      message: `제${nextEra}시대 시작 (정합성 +8)`,
-    })
+    if (noCollapseJustCompleted) window.setTimeout(finishEra, 500)
+    else finishEra()
   },
 
   openVault: () => {
@@ -1188,6 +1390,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const scale = bonus > 0 ? 1 + bonus / 100 : 1
+    const vaultChronicle = `보관소에서 ${name}${josa(name, ['을', '를'])} 회수했다.`
     const concept: Concept = {
       id: newConceptId(name),
       name,
@@ -1199,6 +1402,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       depth: grade === 'registered' ? 0 : grade === 'suspended' ? 2 : grade === 'injudicable' ? 3 : 4,
       pillar: pick.pillar,
       contaminant: pick.contaminant,
+      bornAt: {
+        era: s.era,
+        collapsed: s.collapsed.length,
+        contaminant:
+          activeContaminants(s.contaminantCounts).sort().join(' · ') || null,
+      },
+      chronicle: vaultChronicle,
     }
 
     sfx.gacha()
@@ -1250,7 +1460,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ...cur.chronicle,
           entry(
             cur.era,
-            `보관소에서 ${concept.name}${josa(concept.name, ['을', '를'])} 회수했다.`,
+            vaultChronicle,
           ),
         ],
         fx: {

@@ -22,7 +22,34 @@ export interface Concept {
   depth: number
   pillar: PillarKey
   contaminant?: string
+  parents?: [string, string]
+  bornAt?: {
+    era: number
+    collapsed: number
+    contaminant: string | null
+  }
+  chronicle?: string
   deleted?: boolean
+}
+
+export type CaseTaskId =
+  | 'depth'
+  | 'contaminated'
+  | 'pillars'
+  | 'destruction'
+  | 'noCollapse'
+  | 'selfCombine'
+  | 'discoveries'
+  | 'censored'
+
+export interface EraCaseState {
+  id: CaseTaskId
+  era: number
+  progress: number
+  target: number
+  completed: boolean
+  proclaimedPillars: PillarKey[]
+  collapsedAtStart: number
 }
 
 export interface Pillar {
