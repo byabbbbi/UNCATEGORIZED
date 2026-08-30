@@ -14,7 +14,7 @@ import type { PillarKey } from '../types'
 import { pillarPhase } from '../types'
 import './SidePanel.css'
 
-export type SidePanelView = 'all' | 'pillars' | 'chronicle'
+export type SidePanelView = 'all' | 'pillars' | 'rules' | 'chronicle'
 
 export function SidePanel({ view = 'all' }: { view?: SidePanelView }) {
   const collapsedRules = useGameStore((s) => s.collapsedRules)
@@ -33,13 +33,13 @@ export function SidePanel({ view = 'all' }: { view?: SidePanelView }) {
 
   const remaining = MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra
 
-  const showPillars = view !== 'chronicle'
-  const showChronicle = view !== 'pillars'
+  const showRules = view === 'all' || view === 'pillars' || view === 'rules'
+  const showPillars = view === 'all' || view === 'pillars'
+  const showChronicle = view === 'all' || view === 'chronicle'
 
   return (
     <aside className={`side-panel side-panel--${view}`}>
-      {showPillars && (
-        <>
+      {showRules && (
           <section className="side-block">
         <header className="side-block__head">
           <h2>생성 규칙</h2>
@@ -65,7 +65,9 @@ export function SidePanel({ view = 'all' }: { view?: SidePanelView }) {
           </ul>
         )}
           </section>
+      )}
 
+      {showPillars && (
           <section className="side-block">
         <header className="side-block__head">
           <h2>여덟 기둥</h2>
@@ -83,7 +85,6 @@ export function SidePanel({ view = 'all' }: { view?: SidePanelView }) {
           ))}
         </ul>
           </section>
-        </>
       )}
 
       {showChronicle && (

@@ -120,6 +120,9 @@
   width: var(--card-w);
   height: var(--card-h);
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .canvas-card.is-rerecord {
@@ -230,17 +233,19 @@
 }
 
 @media (max-width: 767px) {
+  .canvas-board {
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
   .canvas-board__hint {
     display: none;
   }
 
   .canvas-tools,
-  .era-close-btn {
-    display: none;
-  }
-
+  .era-close-btn,
   .altar {
-    bottom: 12px;
+    display: none;
   }
 }
 

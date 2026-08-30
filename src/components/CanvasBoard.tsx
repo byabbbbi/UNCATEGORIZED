@@ -64,6 +64,7 @@ function CanvasCard({
   spawnPop,
   rerecord,
   tilt,
+  onTap,
 }: {
   instanceId: string
   conceptId: string
@@ -78,6 +79,7 @@ function CanvasCard({
   spawnPop: boolean
   rerecord: { previous: string; current: string } | null | undefined
   tilt: number
+  onTap?: () => void
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -96,6 +98,7 @@ function CanvasCard({
     startY: number
     pointerType: string
     dragging: boolean
+    longPressed: boolean
   } | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [touchDragging, setTouchDragging] = useState(false)
@@ -146,12 +149,14 @@ function CanvasCard({
           startY: my.get(),
           pointerType: event.pointerType,
           dragging: false,
+          longPressed: false,
         }
         event.currentTarget.setPointerCapture(event.pointerId)
         if (event.pointerType === 'touch') {
           longPressTimer.current = setTimeout(() => {
             const active = pointer.current
             if (!active || active.dragging) return
+            active.longPressed = true
             navigator.vibrate?.(18)
             duplicateInstance(instanceId)
           }, 400)
@@ -176,7 +181,7 @@ function CanvasCard({
           setTouchDragging(active.pointerType === 'touch')
           sfx.pick()
         }
-        const fingerOffset = active.pointerType === 'touch' ? 30 : 0
+        const fingerOffset = active.pointerType === 'touch' ? 40 : 0
         mx.set(active.startX + dx)
         my.set(active.startY + dy - fingerOffset)
         setDrawerHighlight(pointOverDrawer(event.clientX, event.clientY))
@@ -188,7 +193,10 @@ function CanvasCard({
         pointer.current = null
         setTouchDragging(false)
         setDrawerHighlight(false)
-        if (!active.dragging) return
+        if (!active.dragging) {
+          if (!active.longPressed) onTap?.()
+          return
+        }
         if (pointOverDrawer(event.clientX, event.clientY)) {
           dismissInstance(instanceId)
           return
@@ -211,7 +219,7 @@ function CanvasCard({
               y: boardRect.height - 112,
         }
         setInstancePos(instanceId, nx, ny)
-        handleDrop(instanceId, center, altar)
+        handleDrop(instanceId, center, altar, !isMobileViewport())
       }}
       onPointerCancel={(event) => {
         const active = pointer.current
@@ -251,7 +259,7 @@ function CanvasCard({
   )
 }
 
-export function CanvasBoard() {
+export function CanvasBoard({ onCardTap }: { onCardTap?: () => void }) {
   const instances = useGameStore((s) => s.instances)
   const concepts = useGameStore((s) => s.concepts)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
@@ -357,6 +365,7 @@ export function CanvasBoard() {
               spawnPop={!!inst.spawnPop}
               rerecord={inst.rerecord}
               tilt={cardTiltDeg(inst.conceptId, collapsedCount)}
+              onTap={onCardTap}
             />
           )
         })}

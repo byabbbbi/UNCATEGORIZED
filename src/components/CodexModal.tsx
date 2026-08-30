@@ -23,6 +23,9 @@ export function CodexModal() {
   const [sort, setSort] = useState<SortMode>('recent')
   const inputRef = useRef<HTMLInputElement>(null)
   const pillarStability = pillarStabilityMap(pillars)
+  const mobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
 
   useEffect(() => {
     if (!open) return
@@ -89,9 +92,9 @@ export function CodexModal() {
         >
           <motion.div
             className="codex__panel"
-            initial={{ y: 20, opacity: 0 }}
+            initial={{ y: mobile ? '100%' : 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 12, opacity: 0 }}
+            exit={{ y: mobile ? '100%' : 12, opacity: 0 }}
             role="dialog"
             aria-label="대장 · CODEX"
           >

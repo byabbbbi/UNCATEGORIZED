@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
+import { MobileAltar } from './components/MobileAltar'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
@@ -17,7 +18,8 @@ import { unlockAudio } from './sfx'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 
-type MobileSheet = 'pillars' | 'chronicle'
+type MobileSheet = 'rules' | 'chronicle'
+type MobileView = 'workshop' | 'altar'
 
 function applyDecay(count: number) {
   const root = document.documentElement
@@ -56,6 +58,8 @@ export default function App() {
     null,
   )
   const [mobileSheet, setMobileSheet] = useState<MobileSheet | null>(null)
+  const [mobileView, setMobileView] = useState<MobileView>('workshop')
+  const [mobilePrecedentOpen, setMobilePrecedentOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const discoveryCount = discoveredIds.length
@@ -94,6 +98,8 @@ export default function App() {
     const closeMobileOverlays = () => {
       if (query.matches) {
         setMobileSheet(null)
+        setMobileView('workshop')
+        setMobilePrecedentOpen(false)
         setMobileMenuOpen(false)
       }
     }
@@ -231,32 +237,44 @@ export default function App() {
           </div>
         </header>
 
-        <div className="app__main">
+        <div className={`app__main is-mobile-${mobileView}`}>
           <div className="playfield">
             <CaseBanner />
-            <CanvasBoard />
-            <div className="mobile-sheet-tabs" role="tablist" aria-label="게임 패널">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileSheet === 'pillars'}
-                onClick={() => setMobileSheet('pillars')}
-              >
-                기둥
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileSheet === 'chronicle'}
-                onClick={() => setMobileSheet('chronicle')}
-              >
-                연대기
-              </button>
-            </div>
+            <CanvasBoard
+              onCardTap={() => {
+                if (window.matchMedia('(max-width: 767px)').matches) {
+                  setMobilePrecedentOpen(true)
+                }
+              }}
+            />
             <ConceptDrawer />
             <StatStrip />
           </div>
+          <MobileAltar />
           <SidePanel />
+          <nav className="mobile-tabbar" aria-label="주요 화면">
+            <button
+              type="button"
+              className={mobileView === 'workshop' ? 'is-active' : ''}
+              aria-current={mobileView === 'workshop' ? 'page' : undefined}
+              onClick={() => setMobileView('workshop')}
+            >
+              공방
+            </button>
+            <button
+              type="button"
+              className={mobileView === 'altar' ? 'is-active' : ''}
+              aria-current={mobileView === 'altar' ? 'page' : undefined}
+              onClick={() => setMobileView('altar')}
+            >
+              <span>제단</span>
+              {remainingDeclares > 0 ? (
+                <b aria-label={`선포 가능 ${remainingDeclares}회`}>{remainingDeclares}</b>
+              ) : (
+                <em>시대 마감 권장</em>
+              )}
+            </button>
+          </nav>
         </div>
       </motion.div>
 
@@ -279,11 +297,11 @@ export default function App() {
               transition={{ type: 'spring', stiffness: 360, damping: 34 }}
               role="dialog"
               aria-modal="true"
-              aria-label={mobileSheet === 'pillars' ? '기둥과 생성 규칙' : '연대기'}
+              aria-label={mobileSheet === 'rules' ? '생성 규칙' : '연대기'}
               onPointerDown={(event) => event.stopPropagation()}
             >
               <header className="mobile-sheet__head">
-                <h2>{mobileSheet === 'pillars' ? '기둥 · 생성 규칙' : '연대기'}</h2>
+                <h2>{mobileSheet === 'rules' ? '생성 규칙' : '연대기'}</h2>
                 <button
                   type="button"
                   onClick={() => setMobileSheet(null)}
@@ -316,6 +334,12 @@ export default function App() {
               exit={{ y: -8, opacity: 0 }}
               onPointerDown={(event) => event.stopPropagation()}
             >
+              <button type="button" onClick={() => { setMobileSheet('rules'); setMobileMenuOpen(false) }}>
+                생성 규칙
+              </button>
+              <button type="button" onClick={() => { setMobileSheet('chronicle'); setMobileMenuOpen(false) }}>
+                연대기
+              </button>
               <button type="button" onClick={() => { endEra(); setMobileMenuOpen(false) }}>
                 시대 마감
               </button>
@@ -332,6 +356,43 @@ export default function App() {
                 {muted ? '소리 켜기' : '음소거'}
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mobilePrecedentOpen && (
+          <motion.div
+            className="mobile-precedent-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) setMobilePrecedentOpen(false)
+            }}
+          >
+            <motion.section
+              className="mobile-precedent"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+              role="dialog"
+              aria-label="판례"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <header className="mobile-sheet__head">
+                <h2>판례</h2>
+                <button
+                  type="button"
+                  onClick={() => setMobilePrecedentOpen(false)}
+                  aria-label="판례 닫기"
+                >
+                  ✕
+                </button>
+              </header>
+              <StatStrip />
+            </motion.section>
           </motion.div>
         )}
       </AnimatePresence>

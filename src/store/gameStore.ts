@@ -165,10 +165,12 @@ export interface GameStore {
   tidyCanvas: () => void
   openCodex: () => void
   closeCodex: () => void
+  proclaimInstance: (instanceId: string) => void
   handleDrop: (
     instanceId: string,
     center: { x: number; y: number },
     altar: { x: number; y: number },
+    allowProclamation?: boolean,
   ) => void
   endEra: () => void
   openVault: () => void
@@ -225,6 +227,7 @@ function createPlayState(opts?: {
   | 'tidyCanvas'
   | 'openCodex'
   | 'closeCodex'
+  | 'proclaimInstance'
   | 'handleDrop'
   | 'endEra'
   | 'openVault'
@@ -1241,7 +1244,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   closeCodex: () => set({ codexOpen: false }),
 
-  handleDrop: (instanceId, center, altar) => {
+  proclaimInstance: (instanceId) => {
+    const tutorialStep = get().tutorialStep
+    declareOnAltar(instanceId)
+    if (tutorialStep === 3) markTutorial('done')
+  },
+
+  handleDrop: (instanceId, center, altar, allowProclamation = true) => {
     const state = get()
     if (state.fx.inputLocked || state.screen !== 'play') return
     const dragged = state.instances.find((i) => i.instanceId === instanceId)
@@ -1250,19 +1259,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const mobile =
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 767px)').matches
-    const altarDropRadius = ALTAR_R + (mobile ? 24 : 0)
-    const combineRadius = COMBINE_RADIUS + (mobile ? 24 : 0)
+    const altarDropRadius = ALTAR_R
+    const combineRadius = COMBINE_RADIUS * (mobile ? 1.5 : 1)
 
-    if (dist(center.x, center.y, altar.x, altar.y) < altarDropRadius) {
-      declareOnAltar(instanceId)
-      if (state.tutorialStep === 3) {
-        try {
-          localStorage.setItem('tutorialDone', '1')
-        } catch {
-          /* ignore */
-        }
-        set({ tutorialStep: 'done' })
-      }
+    if (
+      allowProclamation &&
+      dist(center.x, center.y, altar.x, altar.y) < altarDropRadius
+    ) {
+      get().proclaimInstance(instanceId)
       return
     }
 

@@ -17,6 +17,8 @@
   gap: 4px;
   padding: 18px 8px 10px;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   cursor: grab;
   touch-action: none;
 }
