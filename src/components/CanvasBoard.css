@@ -119,6 +119,7 @@
 .canvas-card {
   width: var(--card-w);
   height: var(--card-h);
+  touch-action: none;
 }
 
 .canvas-card.is-rerecord {
@@ -225,6 +226,21 @@
   .canvas-tool--era.is-urgent {
     animation: none;
     opacity: 0.95;
+  }
+}
+
+@media (max-width: 767px) {
+  .canvas-board__hint {
+    display: none;
+  }
+
+  .canvas-tools,
+  .era-close-btn {
+    display: none;
+  }
+
+  .altar {
+    bottom: 12px;
   }
 }
 
