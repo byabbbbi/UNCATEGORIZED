@@ -14,7 +14,9 @@ import type { PillarKey } from '../types'
 import { pillarPhase } from '../types'
 import './SidePanel.css'
 
-export function SidePanel() {
+export type SidePanelView = 'all' | 'pillars' | 'chronicle'
+
+export function SidePanel({ view = 'all' }: { view?: SidePanelView }) {
   const collapsedRules = useGameStore((s) => s.collapsedRules)
   const pillars = useGameStore((s) => s.pillars)
   const chronicle = useGameStore((s) => s.chronicle)
@@ -31,9 +33,14 @@ export function SidePanel() {
 
   const remaining = MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra
 
+  const showPillars = view !== 'chronicle'
+  const showChronicle = view !== 'pillars'
+
   return (
-    <aside className="side-panel">
-      <section className="side-block">
+    <aside className={`side-panel side-panel--${view}`}>
+      {showPillars && (
+        <>
+          <section className="side-block">
         <header className="side-block__head">
           <h2>생성 규칙</h2>
           <span className="side-block__count">({collapsedRules.length})</span>
@@ -57,9 +64,9 @@ export function SidePanel() {
             ))}
           </ul>
         )}
-      </section>
+          </section>
 
-      <section className="side-block">
+          <section className="side-block">
         <header className="side-block__head">
           <h2>여덟 기둥</h2>
           <span className="side-block__count">선포 잔여 {remaining}</span>
@@ -75,9 +82,12 @@ export function SidePanel() {
             />
           ))}
         </ul>
-      </section>
+          </section>
+        </>
+      )}
 
-      <section className="side-block side-block--chronicle">
+      {showChronicle && (
+        <section className="side-block side-block--chronicle">
         <header className="side-block__head">
           <h2>연대기</h2>
         </header>
@@ -93,11 +103,14 @@ export function SidePanel() {
             </li>
           ))}
         </ol>
-      </section>
+        </section>
+      )}
 
-      <p className="side-panel__era-note">
-        시대 상한 {MAX_ERA} · 우측 기둥을 고른 뒤 제단에 올려 선포한다
-      </p>
+      {showPillars && (
+        <p className="side-panel__era-note">
+          시대 상한 {MAX_ERA} · {view === 'all' ? '우측 기둥' : '기둥'}을 고른 뒤 제단에 올려 선포한다
+        </p>
+      )}
     </aside>
   )
 }

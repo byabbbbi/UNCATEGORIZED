@@ -35,7 +35,7 @@
   font-weight: 700;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 767px) {
   .case-banner {
     overflow-x: auto;
   }

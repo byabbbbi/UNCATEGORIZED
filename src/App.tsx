@@ -17,6 +17,8 @@ import { unlockAudio } from './sfx'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 
+type MobileSheet = 'pillars' | 'chronicle'
+
 function applyDecay(count: number) {
   const root = document.documentElement
   const body = document.body
@@ -48,9 +50,13 @@ export default function App() {
   const reset = useGameStore((s) => s.reset)
   const openCodex = useGameStore((s) => s.openCodex)
   const closeCodex = useGameStore((s) => s.closeCodex)
+  const endEra = useGameStore((s) => s.endEra)
+  const tidyCanvas = useGameStore((s) => s.tidyCanvas)
   const [confirmation, setConfirmation] = useState<'title' | 'reset' | null>(
     null,
   )
+  const [mobileSheet, setMobileSheet] = useState<MobileSheet | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const discoveryCount = discoveredIds.length
   const remainingDeclares = Math.max(
@@ -72,6 +78,7 @@ export default function App() {
     if (screen !== 'play') return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
+      if (window.matchMedia('(max-width: 767px)').matches) return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       e.preventDefault()
@@ -81,6 +88,19 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [screen, codexOpen, openCodex, closeCodex])
+
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)')
+    const closeMobileOverlays = () => {
+      if (query.matches) {
+        setMobileSheet(null)
+        setMobileMenuOpen(false)
+      }
+    }
+    closeMobileOverlays()
+    query.addEventListener('change', closeMobileOverlays)
+    return () => query.removeEventListener('change', closeMobileOverlays)
+  }, [])
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -129,7 +149,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__stats">
             <label className="topbar__discover">
-              <span>발견</span>
+              <span data-mobile-label="발">발견</span>
               <motion.strong
                 key={fx.discoverPop}
                 className={`topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
@@ -141,25 +161,25 @@ export default function App() {
               </motion.strong>
             </label>
             <label>
-              <span>정합성</span>
+              <span data-mobile-label="정">정합성</span>
               <strong>
                 <AnimatedNumber value={coherence} digits={1} />
               </strong>
             </label>
             <label>
-              <span>시대</span>
+              <span data-mobile-label="시">시대</span>
               <strong>
                 {era}/{MAX_ERA}
               </strong>
             </label>
             <label>
-              <span>선포 잔여</span>
+              <span data-mobile-label="선">선포 잔여</span>
               <strong>
                 {remainingDeclares}
               </strong>
             </label>
             <label>
-              <span>파편</span>
+              <span data-mobile-label="파">파편</span>
               <motion.strong
                 key={fx.shardPop}
                 className="topbar__shard-num"
@@ -176,10 +196,19 @@ export default function App() {
           </div>
 
           <div className="topbar__actions">
-            {message && <p className="topbar__msg">{message}</p>}
+            {message && <p className="topbar__msg" aria-live="polite">{message}</p>}
             <button
               type="button"
-              className="linkish"
+              className="topbar__more"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              aria-label="게임 메뉴"
+              aria-expanded={mobileMenuOpen}
+            >
+              ⋯
+            </button>
+            <button
+              type="button"
+              className="linkish topbar__desktop-action"
               onClick={toggleMute}
               aria-label={muted ? '소리 켜기' : '음소거'}
             >
@@ -187,14 +216,14 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="topbar__reset"
+              className="topbar__reset topbar__desktop-action"
               onClick={() => setConfirmation('title')}
             >
               타이틀
             </button>
             <button
               type="button"
-              className="topbar__reset"
+              className="topbar__reset topbar__desktop-action"
               onClick={() => setConfirmation('reset')}
             >
               초기화
@@ -206,12 +235,106 @@ export default function App() {
           <div className="playfield">
             <CaseBanner />
             <CanvasBoard />
+            <div className="mobile-sheet-tabs" role="tablist" aria-label="게임 패널">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileSheet === 'pillars'}
+                onClick={() => setMobileSheet('pillars')}
+              >
+                기둥
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileSheet === 'chronicle'}
+                onClick={() => setMobileSheet('chronicle')}
+              >
+                연대기
+              </button>
+            </div>
             <ConceptDrawer />
             <StatStrip />
           </div>
           <SidePanel />
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {mobileSheet && (
+          <motion.div
+            className="mobile-sheet-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) setMobileSheet(null)
+            }}
+          >
+            <motion.section
+              className="mobile-sheet"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={mobileSheet === 'pillars' ? '기둥과 생성 규칙' : '연대기'}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <header className="mobile-sheet__head">
+                <h2>{mobileSheet === 'pillars' ? '기둥 · 생성 규칙' : '연대기'}</h2>
+                <button
+                  type="button"
+                  onClick={() => setMobileSheet(null)}
+                  aria-label="시트 닫기"
+                >
+                  ✕
+                </button>
+              </header>
+              <SidePanel view={mobileSheet} />
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="mobile-menu-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) setMobileMenuOpen(false)
+            }}
+          >
+            <motion.div
+              className="mobile-menu"
+              initial={{ y: -8, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -8, opacity: 0 }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <button type="button" onClick={() => { endEra(); setMobileMenuOpen(false) }}>
+                시대 마감
+              </button>
+              <button type="button" onClick={() => { tidyCanvas(); setMobileMenuOpen(false) }}>
+                정리
+              </button>
+              <button type="button" onClick={() => { setConfirmation('title'); setMobileMenuOpen(false) }}>
+                타이틀
+              </button>
+              <button type="button" onClick={() => { setConfirmation('reset'); setMobileMenuOpen(false) }}>
+                초기화
+              </button>
+              <button type="button" onClick={() => { toggleMute(); setMobileMenuOpen(false) }}>
+                {muted ? '소리 켜기' : '음소거'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {confirmation && (

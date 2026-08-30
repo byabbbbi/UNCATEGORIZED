@@ -144,3 +144,13 @@
   white-space: nowrap;
   border: 0;
 }
+
+@media (max-width: 767px) {
+  .codex {
+    padding:
+      calc(16px + env(safe-area-inset-top))
+      calc(16px + env(safe-area-inset-right))
+      calc(16px + env(safe-area-inset-bottom))
+      calc(16px + env(safe-area-inset-left));
+  }
+}
