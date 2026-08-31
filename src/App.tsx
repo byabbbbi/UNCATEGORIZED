@@ -4,6 +4,7 @@ import { CanvasBoard } from './components/CanvasBoard'
 import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
 import { MobileComboToast } from './components/MobileComboToast'
+import { MobileArchive } from './components/MobileArchive'
 import {
   MobileOnboarding,
   type MobileOnboardingStep,
@@ -34,7 +35,7 @@ import './styles/mobileFeedback.css'
 import './styles/mobileGame.css'
 
 type MobileSheet = 'rules' | 'chronicle'
-type MobileView = 'workshop' | 'altar'
+type MobileView = 'workshop' | 'altar' | 'archive'
 const MOBILE_ONBOARDING_KEY = 'uncat-mobile-onboarding-v1'
 
 function initialMobileOnboarding(): MobileOnboardingStep {
@@ -94,6 +95,7 @@ export default function App() {
   const [mobileView, setMobileView] = useState<MobileView>('workshop')
   const [mobilePrecedentOpen, setMobilePrecedentOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileCodexOrigin, setMobileCodexOrigin] = useState<MobileView | null>(null)
   const [hapticsOn, setHapticsOn] = useState(() => hapticsEnabled())
   const hapticsAvailable = supportsHaptics()
   const [mobileOnboarding, setMobileOnboarding] = useState<MobileOnboardingStep>(
@@ -106,6 +108,10 @@ export default function App() {
     0,
     MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra,
   )
+  const noCollapseWillComplete =
+    eraCase.id === 'noCollapse' &&
+    collapsed.length === eraCase.collapsedAtStart
+  const eraCaseWillReward = eraCase.completed || noCollapseWillComplete
 
   const isMobile = () =>
     typeof window !== 'undefined' &&
@@ -152,11 +158,21 @@ export default function App() {
     discardMobileHistory()
   }
   const openMobileCodex = () => {
-    pushMobileHistory('codex')
+    pushMobileHistory('codex', mobileView)
+    setMobileCodexOrigin(mobileView)
+    if (mobileView === 'archive') setMobileView('workshop')
     openCodex()
   }
   const closeMobileCodex = () => {
     closeCodex()
+    if (mobileCodexOrigin === 'archive') setMobileView('archive')
+    setMobileCodexOrigin(null)
+    discardMobileHistory()
+  }
+  const finishMobileCodexSpawn = () => {
+    closeCodex()
+    setMobileCodexOrigin(null)
+    setMobileView('workshop')
     discardMobileHistory()
   }
   const openMobileAltar = () => {
@@ -164,16 +180,17 @@ export default function App() {
     clearMobileComboSlots()
     setMobileView('altar')
   }
+  const openMobileArchive = () => {
+    pushMobileHistory('archive', 'archive')
+    setMobileView('archive')
+  }
   const returnToWorkshop = () => {
-    if (mobileView === 'altar') discardMobileHistory()
+    if (mobileView !== 'workshop') discardMobileHistory()
     setMobileView('workshop')
   }
   const requestEndEra = () => {
     if (proclamationsThisEra <= 0 || fx.inputLocked) return
-    const noCollapseWillComplete =
-      eraCase.id === 'noCollapse' &&
-      collapsed.length === eraCase.collapsedAtStart
-    if (!eraCase.completed && !noCollapseWillComplete) {
+    if (!eraCaseWillReward) {
       if (isMobile() && !mobileMenuOpen) pushMobileHistory('confirmation')
       setConfirmation('endEra')
       return
@@ -227,6 +244,7 @@ export default function App() {
         setMobileView('workshop')
         setMobilePrecedentOpen(false)
         setMobileMenuOpen(false)
+        setMobileCodexOrigin(null)
       }
     }
     closeMobileOverlays()
@@ -260,7 +278,7 @@ export default function App() {
         mobilePrecedentOpen ||
         codexOpen ||
         !!confirmation ||
-        mobileView === 'altar'
+        mobileView !== 'workshop'
       if (!hasMobileLayer) return
       const restoreView = event.state?.uncatMobile?.view
       setMobileSheet(null)
@@ -268,7 +286,12 @@ export default function App() {
       setMobilePrecedentOpen(false)
       setConfirmation(null)
       if (codexOpen) closeCodex()
-      setMobileView(restoreView === 'altar' ? 'altar' : 'workshop')
+      setMobileCodexOrigin(null)
+      setMobileView(
+        restoreView === 'altar' || restoreView === 'archive'
+          ? restoreView
+          : 'workshop',
+      )
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -452,6 +475,28 @@ export default function App() {
           </div>
           <MobileAltar />
           <SidePanel />
+          <MobileArchive
+            onOpenCodex={openMobileCodex}
+            onOpenSheet={openMobileSheet}
+          />
+          {remainingDeclares === 0 && (
+            <button
+              type="button"
+              className="mobile-era-cta"
+              onClick={requestEndEra}
+              disabled={fx.inputLocked}
+            >
+              <GameGlyph kind="era" />
+              <span>
+                <strong>시대 마감</strong>
+                <small>
+                  {eraCaseWillReward
+                    ? '세계를 정산하고 다음 시대로'
+                    : '사건 미완료 · 파편 3개 포기'}
+                </small>
+              </span>
+            </button>
+          )}
           <nav className="mobile-tabbar" aria-label="주요 화면">
             <button
               type="button"
@@ -462,28 +507,28 @@ export default function App() {
               <GameGlyph kind="workshop" />
               <span className="mobile-tabbar__label">공방</span>
             </button>
-            {remainingDeclares > 0 ? (
-              <button
-                type="button"
-                className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
-                aria-current={mobileView === 'altar' ? 'page' : undefined}
-                onClick={openMobileAltar}
-              >
-                <GameGlyph kind="altar" />
-                <span className="mobile-tabbar__label">제단</span>
+            <button
+              type="button"
+              className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
+              aria-current={mobileView === 'altar' ? 'page' : undefined}
+              onClick={openMobileAltar}
+            >
+              <GameGlyph kind="altar" />
+              <span className="mobile-tabbar__label">제단</span>
+              {remainingDeclares > 0 && (
                 <b aria-label={`선포 가능 ${remainingDeclares}회`}>{remainingDeclares}</b>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="is-era-cta"
-                onClick={requestEndEra}
-                disabled={fx.inputLocked}
-              >
-                <GameGlyph kind="era" />
-                <span className="mobile-tabbar__label">시대 마감</span>
-              </button>
-            )}
+              )}
+            </button>
+            <button
+              type="button"
+              className={mobileView === 'archive' ? 'is-active' : ''}
+              aria-current={mobileView === 'archive' ? 'page' : undefined}
+              onClick={openMobileArchive}
+            >
+              <GameGlyph kind="codex" />
+              <span className="mobile-tabbar__label">기록소</span>
+              {shards >= 10 && <b aria-label="보관소 회수 가능">◈</b>}
+            </button>
           </nav>
         </div>
       </motion.div>
@@ -558,12 +603,7 @@ export default function App() {
                 disabled={proclamationsThisEra <= 0 || fx.inputLocked}
                 onClick={() => {
                   setMobileMenuOpen(false)
-                  const willConfirm =
-                    !eraCase.completed &&
-                    !(
-                      eraCase.id === 'noCollapse' &&
-                      collapsed.length === eraCase.collapsedAtStart
-                    )
+                  const willConfirm = !eraCaseWillReward
                   if (!willConfirm) discardMobileHistory()
                   requestEndEra()
                 }}
@@ -719,8 +759,12 @@ export default function App() {
       </AnimatePresence>
 
       <VaultModal />
-      <CodexModal onMobileClose={closeMobileCodex} />
+      <CodexModal
+        onMobileClose={closeMobileCodex}
+        onMobileSpawn={finishMobileCodexSpawn}
+      />
       {gameMode !== 'demo' &&
+        mobileView !== 'archive' &&
         !(mobileView === 'altar' && mobileOnboarding === 'combo') && (
           <MobileOnboarding step={mobileOnboarding} />
         )}

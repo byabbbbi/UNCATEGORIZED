@@ -12,8 +12,10 @@ const INITIAL_IDS = new Set(['void', 'spark', 'clay', 'tide'])
 
 export function CodexModal({
   onMobileClose,
+  onMobileSpawn,
 }: {
   onMobileClose?: () => void
+  onMobileSpawn?: () => void
 }) {
   const open = useGameStore((s) => s.codexOpen)
   const closeCodex = useGameStore((s) => s.closeCodex)
@@ -98,7 +100,8 @@ export function CodexModal({
     if (!board) return
     const rect = board.getBoundingClientRect()
     spawnFromDrawer(c.id, rect.width / 2, rect.height / 2)
-    closeCodex()
+    if (mobile) onMobileSpawn?.()
+    else closeCodex()
   }
 
   return (
