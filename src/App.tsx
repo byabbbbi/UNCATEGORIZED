@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { MobileAltar } from './components/MobileAltar'
+import { MobileComboTray } from './components/MobileComboTray'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
@@ -54,6 +55,10 @@ export default function App() {
   const closeCodex = useGameStore((s) => s.closeCodex)
   const endEra = useGameStore((s) => s.endEra)
   const tidyCanvas = useGameStore((s) => s.tidyCanvas)
+  const queueMobileComboInstance = useGameStore((s) => s.queueMobileComboInstance)
+  const clearMobileComboSlots = useGameStore((s) => s.clearMobileComboSlots)
+  const selectedInstanceId = useGameStore((s) => s.selectedInstanceId)
+  const duplicateInstance = useGameStore((s) => s.duplicateInstance)
   const [confirmation, setConfirmation] = useState<'title' | 'reset' | null>(
     null,
   )
@@ -241,12 +246,10 @@ export default function App() {
           <div className="playfield">
             <CaseBanner />
             <CanvasBoard
-              onCardTap={() => {
-                if (window.matchMedia('(max-width: 767px)').matches) {
-                  setMobilePrecedentOpen(true)
-                }
-              }}
+              onMobileCardTap={queueMobileComboInstance}
+              onMobileCardLongPress={() => setMobilePrecedentOpen(true)}
             />
+            <MobileComboTray />
             <ConceptDrawer />
             <StatStrip />
           </div>
@@ -265,7 +268,10 @@ export default function App() {
               type="button"
               className={mobileView === 'altar' ? 'is-active' : ''}
               aria-current={mobileView === 'altar' ? 'page' : undefined}
-              onClick={() => setMobileView('altar')}
+              onClick={() => {
+                clearMobileComboSlots()
+                setMobileView('altar')
+              }}
             >
               <span>제단</span>
               {remainingDeclares > 0 ? (
@@ -383,13 +389,26 @@ export default function App() {
             >
               <header className="mobile-sheet__head">
                 <h2>판례</h2>
-                <button
-                  type="button"
-                  onClick={() => setMobilePrecedentOpen(false)}
-                  aria-label="판례 닫기"
-                >
-                  ✕
-                </button>
+                <div className="mobile-precedent__actions">
+                  <button
+                    type="button"
+                    className="mobile-precedent__duplicate"
+                    disabled={!selectedInstanceId || fx.inputLocked}
+                    onClick={() => {
+                      if (selectedInstanceId) duplicateInstance(selectedInstanceId)
+                      setMobilePrecedentOpen(false)
+                    }}
+                  >
+                    복제
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobilePrecedentOpen(false)}
+                    aria-label="판례 닫기"
+                  >
+                    ✕
+                  </button>
+                </div>
               </header>
               <StatStrip />
             </motion.section>

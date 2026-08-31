@@ -129,6 +129,29 @@
   overflow: visible;
 }
 
+.canvas-card.is-combo-reserved .index-card {
+  opacity: 0.4;
+  box-shadow: inset 0 0 0 2px var(--seal);
+}
+
+.canvas-card__reserved {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  z-index: 30;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--seal);
+  border-radius: 50%;
+  background: var(--form-light);
+  color: var(--seal);
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .rerecord-caption {
   position: absolute;
   left: 50%;
