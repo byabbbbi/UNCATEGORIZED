@@ -1,0 +1,47 @@
+.mobile-combo-toast {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-combo-toast {
+    position: absolute;
+    right: 12px;
+    bottom: 170px;
+    left: 12px;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    margin: 0;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--gold) 72%, var(--rule));
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--form-light) 96%, var(--gold));
+    box-shadow: 0 4px 14px rgba(14, 18, 16, 0.16);
+    color: var(--ink);
+    font-family: var(--font-decree);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .mobile-combo-toast b {
+    flex: 0 0 auto;
+    padding: 2px 5px;
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    color: var(--seal);
+    font-family: var(--font-data);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-combo-toast {
+    transition: none;
+  }
+}

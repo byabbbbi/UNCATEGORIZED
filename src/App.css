@@ -283,16 +283,31 @@
   }
 
   .topbar__stats label > span::after {
-    content: attr(data-mobile-label);
-    font-family: var(--font-data);
-    font-size: 9px;
+    content: attr(data-mobile-icon);
+    font-family: var(--font-body);
+    font-size: 14px;
     letter-spacing: 0;
+  }
+
+  .topbar__stats .topbar__coherence > span::after {
+    content: attr(data-mobile-icon);
+    font-family: var(--font-data);
+    font-size: 10px;
+    color: var(--ink-dim);
   }
 
   .topbar__stats strong,
   .topbar__discover-num,
   .topbar__shard-num {
     font-size: 13px;
+  }
+
+  .topbar__coherence strong {
+    font-size: 16px;
+  }
+
+  .topbar__coherence strong.is-critical {
+    color: var(--seal);
   }
 
   .topbar__actions {
@@ -305,19 +320,7 @@
   }
 
   .topbar__msg {
-    position: fixed;
-    top: auto;
-    bottom: calc(142px + env(safe-area-inset-bottom));
-    left: 50%;
-    z-index: 240;
-    max-width: min(88vw, 360px);
-    translate: -50% 0;
-    padding: 5px 8px;
-    border: 1px solid var(--rule);
-    background: color-mix(in srgb, var(--form-light) 94%, transparent);
-    font-size: 11px;
-    text-align: center;
-    pointer-events: none;
+    display: none;
   }
 
   .topbar__more {
@@ -343,6 +346,7 @@
   }
 
   .playfield {
+    position: relative;
     min-height: 0;
     padding:
       7px
@@ -352,8 +356,14 @@
     gap: 6px;
   }
 
-  .playfield > .canvas-board {
-    min-height: 60dvh;
+  .playfield > .canvas-board.is-mobile-compact {
+    flex: 0 0 min(42dvh, 358px);
+    min-height: 240px;
+  }
+
+  .playfield > .canvas-board.is-mobile-expanded {
+    flex: 1 1 0;
+    min-height: 42dvh;
   }
 
   .playfield > .stat-strip {
