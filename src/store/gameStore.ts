@@ -51,6 +51,7 @@ import type {
   FxState,
   GameMode,
   MobileComboSlot,
+  MobileComboToast,
   Pillar,
   PillarKey,
   ScreenMode,
@@ -150,6 +151,7 @@ export interface GameStore {
   codexOpen: boolean
   mobileComboSlots: [MobileComboSlot | null, MobileComboSlot | null]
   mobileComboPreparing: boolean
+  mobileComboToast: MobileComboToast | null
 
   startFresh: () => void
   startContinue: () => void
@@ -166,6 +168,7 @@ export interface GameStore {
   queueMobileComboConcept: (conceptId: string) => void
   removeMobileComboSlot: (index: 0 | 1) => void
   clearMobileComboSlots: () => void
+  clearMobileComboToast: (id: string) => void
   setInstancePos: (instanceId: string, x: number, y: number) => void
   dismissInstance: (instanceId: string) => void
   setDrawerHighlight: (on: boolean) => void
@@ -193,11 +196,23 @@ function seedInstances(concepts: Concept[]): CanvasInstance[] {
   const mobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(max-width: 767px)').matches
+  const initialCount = Math.min(concepts.length, 4)
+  const mobileColumns = Math.min(initialCount, 3)
+  const mobileStartX = mobile
+    ? Math.max(
+        14,
+        ((window.innerWidth - 16) -
+          (mobileColumns * CARD_W + Math.max(0, mobileColumns - 1) * 14)) /
+          2,
+      )
+    : 0
   return concepts.slice(0, 4).map((c, i) => ({
     instanceId: uid('i'),
     conceptId: c.id,
-    x: mobile ? 18 + (i % 3) * (CARD_W + 8) : 56 + i * 114,
-    y: mobile ? 36 + Math.floor(i / 3) * (CARD_H + 8) : 72 + (i % 2) * 40,
+    x: mobile
+      ? mobileStartX + (i % 3) * (CARD_W + 14)
+      : 56 + i * 114,
+    y: mobile ? 82 + Math.floor(i / 3) * 82 : 72 + (i % 2) * 40,
   }))
 }
 
@@ -232,6 +247,7 @@ function createPlayState(opts?: {
   | 'queueMobileComboConcept'
   | 'removeMobileComboSlot'
   | 'clearMobileComboSlots'
+  | 'clearMobileComboToast'
   | 'setInstancePos'
   | 'dismissInstance'
   | 'setDrawerHighlight'
@@ -299,6 +315,7 @@ function createPlayState(opts?: {
       codexOpen: false,
       mobileComboSlots: [null, null],
       mobileComboPreparing: false,
+      mobileComboToast: null,
     }
   }
 
@@ -350,6 +367,7 @@ function createPlayState(opts?: {
       codexOpen: false,
       mobileComboSlots: [null, null],
       mobileComboPreparing: false,
+      mobileComboToast: null,
     }
   }
 
@@ -389,6 +407,7 @@ function createPlayState(opts?: {
     codexOpen: false,
     mobileComboSlots: [null, null],
     mobileComboPreparing: false,
+    mobileComboToast: null,
   }
 }
 
@@ -527,14 +546,49 @@ function isMobileViewport() {
   )
 }
 
-function mobileBoardCenter() {
+function mobileBoardCenter(excludedInstanceIds: string[] = []) {
   const board = document.querySelector<HTMLElement>('.canvas-board')
   if (!board) return { x: 180, y: 160 }
   const rect = board.getBoundingClientRect()
-  return {
-    x: rect.width / 2,
-    y: Math.max(CARD_H / 2 + 18, rect.height / 2),
+  const xMin = CARD_W / 2 + 10
+  const xMax = Math.max(xMin, rect.width - CARD_W / 2 - 10)
+  const yMin = CARD_H / 2 + 14
+  const yMax = Math.max(yMin, rect.height - CARD_H / 2 - 14)
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value))
+  const candidates = [
+    [0.5, 0.5],
+    [0.27, 0.5],
+    [0.73, 0.5],
+    [0.5, 0.26],
+    [0.5, 0.74],
+    [0.25, 0.26],
+    [0.75, 0.26],
+    [0.25, 0.74],
+    [0.75, 0.74],
+  ] as const
+  const current = useGameStore.getState()
+  const visible = current.instances.filter(
+    (instance) => !excludedInstanceIds.includes(instance.instanceId),
+  )
+
+  for (const [xRatio, yRatio] of candidates) {
+    const point = {
+      x: clamp(rect.width * xRatio, xMin, xMax),
+      y: clamp(rect.height * yRatio, yMin, yMax),
+    }
+    const overlaps = visible.some((instance) => {
+      const instanceCenterX = instance.x + CARD_W / 2
+      const instanceCenterY = instance.y + CARD_H / 2
+      return (
+        Math.abs(instanceCenterX - point.x) < CARD_W - 8 &&
+        Math.abs(instanceCenterY - point.y) < CARD_H - 8
+      )
+    })
+    if (!overlaps) return point
   }
+
+  return { x: rect.width / 2, y: Math.max(CARD_H / 2 + 18, rect.height / 2) }
 }
 
 function triggerEnding(kind: Exclude<EndingKind, null>) {
@@ -929,6 +983,7 @@ function resolveSlot(
             y: i.y,
             processing: false,
             revealDiscovery: isDiscovery || isRerecord,
+            spawnPop: true,
             rerecord: isRerecord
               ? { previous: previousName!, current: result.name }
               : null,
@@ -937,6 +992,13 @@ function resolveSlot(
     ),
     selectedInstanceId: slotId,
     hoverConceptId: concept.id,
+    mobileComboToast: {
+      id: uid('combo-toast'),
+      first: { emoji: a.emoji, name: a.name },
+      second: { emoji: b.emoji, name: b.name },
+      result: { emoji: concept.emoji, name: concept.name },
+      isDiscovery,
+    },
     message: isRerecord
       ? `같은 조합이 다른 결과: ${previousName} → ${result.name}`
       : isDiscovery
@@ -964,7 +1026,12 @@ function resolveSlot(
     useGameStore.setState((st) => ({
       instances: st.instances.map((i) =>
         i.instanceId === slotId
-          ? { ...i, revealDiscovery: false, rerecord: null }
+          ? {
+              ...i,
+              revealDiscovery: false,
+              spawnPop: undefined,
+              rerecord: null,
+            }
           : i,
       ),
     }))
@@ -1070,7 +1137,7 @@ function scheduleMobileCombination() {
       mobileComboPreparing: false,
     })
     if (!a || !b || missingCanvasInput) return
-    beginCombination(a, b, consumed, mobileBoardCenter())
+    beginCombination(a, b, consumed, mobileBoardCenter(consumed))
   }, 250)
 }
 
@@ -1128,6 +1195,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       codexOpen: false,
       mobileComboSlots: [null, null],
       mobileComboPreparing: false,
+      mobileComboToast: null,
     })
   },
 
@@ -1183,6 +1251,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       codexOpen: false,
       mobileComboSlots: [null, null],
       mobileComboPreparing: false,
+      mobileComboToast: null,
     })
   },
 
@@ -1237,11 +1306,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const concept = s.concepts.find((item) => item.id === source.conceptId)
     if (!concept || concept.deleted || concept.name === '███') return
 
+    const mobilePoint = isMobileViewport()
+      ? mobileBoardCenter([source.instanceId])
+      : null
     const duplicate: CanvasInstance = {
       instanceId: uid('i'),
       conceptId: source.conceptId,
-      x: source.x + 20,
-      y: source.y + 20,
+      x: mobilePoint ? mobilePoint.x - CARD_W / 2 : source.x + 20,
+      y: mobilePoint ? mobilePoint.y - CARD_H / 2 : source.y + 20,
       spawnPop: true,
     }
     set((state) => ({
@@ -1332,6 +1404,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearMobileComboSlots: () =>
     set({ mobileComboSlots: [null, null], mobileComboPreparing: false }),
 
+  clearMobileComboToast: (id) =>
+    set((state) =>
+      state.mobileComboToast?.id === id ? { mobileComboToast: null } : state,
+    ),
+
   setInstancePos: (instanceId, x, y) => {
     set((s) => ({
       instances: s.instances.map((i) =>
@@ -1369,17 +1446,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const mobile =
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 767px)').matches
+    const mobileCards = s.instances.filter((inst) => !inst.processing)
     const gapX = mobile ? CARD_W + 8 : 110
-    const gapY = mobile ? CARD_H + 8 : 110
+    const gapY = mobile ? CARD_H + 6 : 110
     const maxCols = mobile
-      ? Math.max(2, Math.floor((window.innerWidth - 12) / gapX))
+      ? Math.min(3, Math.max(2, Math.floor((window.innerWidth - 16) / gapX)))
       : 6
+    const mobileRows = mobile ? Math.ceil(mobileCards.length / maxCols) : 0
+    const boardHeight = mobile
+      ? document.querySelector<HTMLElement>('.canvas-board')?.clientHeight ?? 280
+      : 0
+    const mobileStartY = mobile
+      ? Math.max(
+          20,
+          Math.floor(
+            (boardHeight -
+              (mobileRows * CARD_H + Math.max(0, mobileRows - 1) * 6)) /
+              2,
+          ),
+        )
+      : 0
     let col = 0
     let row = 0
     const next = s.instances.map((inst) => {
       if (inst.processing) return inst
-      const x = (mobile ? 10 : 16) + col * gapX
-      const y = (mobile ? 24 : 28) + row * gapY
+      const cardsInRow = mobile
+        ? Math.min(maxCols, mobileCards.length - row * maxCols)
+        : maxCols
+      const x = mobile
+        ? Math.max(
+            8,
+            ((window.innerWidth - 16) -
+              (cardsInRow * CARD_W + Math.max(0, cardsInRow - 1) * 8)) /
+              2,
+          ) +
+          col * gapX
+        : 16 + col * gapX
+      const y = mobile ? mobileStartY + row * gapY : 28 + row * gapY
       col += 1
       if (col >= maxCols) {
         col = 0

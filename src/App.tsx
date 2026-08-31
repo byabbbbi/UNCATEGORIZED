@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
+import { MobileComboToast } from './components/MobileComboToast'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
@@ -160,7 +161,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__stats">
             <label className="topbar__discover">
-              <span data-mobile-label="발">발견</span>
+              <span data-mobile-icon="🔍">발견</span>
               <motion.strong
                 key={fx.discoverPop}
                 className={`topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
@@ -171,26 +172,26 @@ export default function App() {
                 <AnimatedNumber value={discoveryCount} digits={0} />
               </motion.strong>
             </label>
-            <label>
-              <span data-mobile-label="정">정합성</span>
-              <strong>
+            <label className="topbar__coherence">
+              <span data-mobile-icon="정합성">정합성</span>
+              <strong className={coherence <= 30 ? 'is-critical' : ''}>
                 <AnimatedNumber value={coherence} digits={1} />
               </strong>
             </label>
             <label>
-              <span data-mobile-label="시">시대</span>
+              <span data-mobile-icon="⏳">시대</span>
               <strong>
                 {era}/{MAX_ERA}
               </strong>
             </label>
             <label>
-              <span data-mobile-label="선">선포 잔여</span>
+              <span data-mobile-icon="⚡">선포 잔여</span>
               <strong>
                 {remainingDeclares}
               </strong>
             </label>
             <label>
-              <span data-mobile-label="파">파편</span>
+              <span data-mobile-icon="◈">파편</span>
               <motion.strong
                 key={fx.shardPop}
                 className="topbar__shard-num"
@@ -251,6 +252,7 @@ export default function App() {
             />
             <MobileComboTray />
             <ConceptDrawer />
+            <MobileComboToast />
             <StatStrip />
           </div>
           <MobileAltar />

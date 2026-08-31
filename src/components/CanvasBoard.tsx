@@ -252,7 +252,7 @@ function CanvasCard({
         if (isMobileViewport()) event.preventDefault()
       }}
     >
-      {revealDiscovery && <span className="result-burst__ring" />}
+      {(revealDiscovery || spawnPop) && <span className="result-burst__ring" />}
       {reserved && (
         <span className="canvas-card__reserved" aria-hidden>
           {reservedSlot + 1}
@@ -307,6 +307,7 @@ export function CanvasBoard({
   const collapsedCount = useGameStore((s) => s.collapsed.length)
   const pillarStability = pillarStabilityMap(pillars)
   const boardRef = useRef<HTMLElement>(null)
+  const mobileLayoutApplied = useRef(false)
 
   const initialDiscoveries = new Set(
     discoveredIds.filter((id) => !['void', 'spark', 'clay', 'tide'].includes(id)),
@@ -315,11 +316,28 @@ export function CanvasBoard({
   const eraRemainingZero =
     proclamationsThisEra >= MAX_PROCLAMATIONS_PER_ERA
   const eraUrgent = eraRemainingZero || coherence <= 30
+  const isCompactMobileBoard = instances.length <= 5
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const applyMobileLayout = () => {
+      if (!query.matches) {
+        mobileLayoutApplied.current = false
+        return
+      }
+      if (mobileLayoutApplied.current) return
+      mobileLayoutApplied.current = true
+      window.requestAnimationFrame(tidyCanvas)
+    }
+    applyMobileLayout()
+    query.addEventListener('change', applyMobileLayout)
+    return () => query.removeEventListener('change', applyMobileLayout)
+  }, [tidyCanvas])
 
   return (
     <section
       ref={boardRef}
-      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''}`}
+      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''}${isCompactMobileBoard ? ' is-mobile-compact' : ' is-mobile-expanded'}`}
       style={{ ['--decay' as string]: collapsedCount }}
     >
       <div className="canvas-rules" aria-hidden />

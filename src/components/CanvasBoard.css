@@ -354,7 +354,7 @@
   inset: -18px;
   border: 2px solid var(--gold);
   border-radius: 50%;
-  animation: ring-out 0.55s ease-out forwards;
+  animation: ring-out 0.6s ease-out forwards;
 }
 
 @keyframes ring-out {
