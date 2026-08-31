@@ -32,6 +32,7 @@ import {
 import { calcProclaimImpact } from '../game/formulas'
 import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
+import { vibrateMobile } from '../mobileFeedback'
 import { josa } from '../utils/josa'
 import { firstGrapheme } from '../utils/emoji'
 import {
@@ -675,6 +676,7 @@ function runCollapseSequence(pillarKey: PillarKey) {
     },
   }))
   sfx.collapse()
+  vibrateMobile(60)
 
   window.setTimeout(() => {
     useGameStore.setState((s) => ({
@@ -1014,6 +1016,7 @@ function resolveSlot(
 
   if (caseUpdate.justCompleted || isRerecord || isDiscovery) sfx.discover()
   else sfx.combine()
+  vibrateMobile(isDiscovery ? 30 : 15)
 
   if (isDiscovery) {
     bumpDiscoverPop()

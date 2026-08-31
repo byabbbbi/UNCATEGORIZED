@@ -2,6 +2,7 @@ import { zzfx, ZZFX } from 'zzfx'
 
 let muted = false
 let unlocked = false
+let unlockInFlight: Promise<void> | null = null
 
 export function isMuted() {
   return muted
@@ -18,9 +19,23 @@ export function toggleMute() {
 
 /** 첫 사용자 제스처에서 AudioContext 잠금 해제 */
 export function unlockAudio() {
-  if (unlocked) return
-  unlocked = true
-  void ZZFX.audioContext.resume()
+  const context = ZZFX.audioContext
+  if (unlocked || context.state === 'running') {
+    unlocked = true
+    return
+  }
+  if (unlockInFlight) return
+  unlockInFlight = context
+    .resume()
+    .then(() => {
+      unlocked = context.state === 'running'
+    })
+    .catch(() => {
+      unlocked = false
+    })
+    .finally(() => {
+      unlockInFlight = null
+    })
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

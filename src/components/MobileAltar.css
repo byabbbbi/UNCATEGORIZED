@@ -240,6 +240,9 @@
   }
 
   .mobile-altar__declare button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     width: 100%;
     min-height: 48px;
     appearance: none;
@@ -253,9 +256,33 @@
     letter-spacing: 0.34em;
   }
 
+  .mobile-altar__hold-label {
+    position: relative;
+    z-index: 1;
+  }
+
+  .mobile-altar__hold-fill {
+    position: absolute;
+    z-index: 0;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: color-mix(in srgb, var(--seal) 23%, transparent);
+  }
+
+  .mobile-altar__declare button.is-holding .mobile-altar__hold-fill {
+    width: 100%;
+    transition: width 0.4s linear;
+  }
+
   .mobile-altar__declare button:disabled {
     border-color: var(--rule);
     color: var(--ink-dim);
     opacity: 0.48;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-altar__declare button.is-holding .mobile-altar__hold-fill {
+    transition: none;
   }
 }

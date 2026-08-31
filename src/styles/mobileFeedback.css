@@ -1,0 +1,23 @@
+@media (max-width: 767px) {
+  .app button,
+  .title-screen button {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      background-color 0.12s ease;
+  }
+
+  .app button:not(:disabled):active,
+  .title-screen button:not(:disabled):active {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app button,
+  .title-screen button {
+    transition: none;
+  }
+}

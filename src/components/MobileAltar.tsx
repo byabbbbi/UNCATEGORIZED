@@ -12,6 +12,7 @@ import { getEraDMultiplier } from '../data/balance'
 import { calcCoherenceLoss, calcD } from '../game/formulas'
 import { useGameStore } from '../store/gameStore'
 import { pillarPhase, type PillarKey } from '../types'
+import { vibrateMobile } from '../mobileFeedback'
 import './MobileAltar.css'
 
 const PHASE_LABEL = {
@@ -52,6 +53,7 @@ function MobilePillar({
       <button
         type="button"
         className={selected ? 'is-selected' : ''}
+        data-pillar-key={pillarKey}
         disabled={collapsed}
         aria-pressed={selected}
         onPointerDown={(event) => {
@@ -63,7 +65,7 @@ function MobilePillar({
             timer: setTimeout(() => {
               next.longPressed = true
               setDetailOpen((open) => !open)
-              navigator.vibrate?.(12)
+              vibrateMobile(12)
             }, 400),
           }
           gesture.current = next
@@ -119,6 +121,12 @@ export function MobileAltar() {
   const selectInstance = useGameStore((s) => s.selectInstance)
   const setTargetPillar = useGameStore((s) => s.setTargetPillar)
   const proclaimInstance = useGameStore((s) => s.proclaimInstance)
+  const targetListRef = useRef<HTMLUListElement>(null)
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdCompleted = useRef(false)
+  const [holding, setHolding] = useState(false)
+  const [holdHint, setHoldHint] = useState(false)
+  const [reducedConfirm, setReducedConfirm] = useState(false)
 
   const available = instances.filter((instance) => !instance.processing)
   const selectedInstance = available.find(
@@ -148,6 +156,62 @@ export function MobileAltar() {
   const coherenceLoss = selectedConcept
     ? calcCoherenceLoss(selectedConcept.chaos, selectedConcept.plausibility)
     : null
+  const reduceMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const proclaimReason = !selectedInstance
+    ? '선포할 카드를 선택하세요'
+    : !targetPillar
+      ? '대상 기둥을 선택하세요'
+      : !selectedPillar || selectedPillar.stability <= 0
+        ? '무너지지 않은 기둥을 선택하세요'
+        : remaining <= 0
+          ? '선포를 모두 사용했습니다 · 시대 마감을 권장합니다'
+          : locked
+            ? '판정이 진행 중입니다'
+            : reducedConfirm
+              ? '한 번 더 탭하면 선포합니다'
+              : holdHint
+                ? '꾹 눌러 선포합니다'
+                : `남은 선포 ${remaining}회`
+
+  useEffect(() => {
+    if (!targetPillar) return
+    const selected = targetListRef.current?.querySelector<HTMLElement>(
+      `[data-pillar-key="${targetPillar}"]`,
+    )
+    selected?.scrollIntoView({
+      block: 'nearest',
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
+  }, [targetPillar, reduceMotion])
+
+  useEffect(
+    () => () => {
+      if (holdRef.current) window.clearTimeout(holdRef.current)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    holdCompleted.current = false
+    setHoldHint(false)
+    setReducedConfirm(false)
+  }, [selectedInstanceId, targetPillar])
+
+  const clearHold = () => {
+    if (holdRef.current) window.clearTimeout(holdRef.current)
+    holdRef.current = null
+    setHolding(false)
+  }
+
+  const finishProclamation = () => {
+    if (!selectedInstance || holdCompleted.current) return
+    holdCompleted.current = true
+    clearHold()
+    proclaimInstance(selectedInstance.instanceId)
+    setReducedConfirm(false)
+  }
 
   return (
     <section className="mobile-altar-screen" aria-label="제단">
@@ -193,7 +257,7 @@ export function MobileAltar() {
           <h2>대상 기둥</h2>
           <span>길게 눌러 신의 질문 보기</span>
         </header>
-        <ul>
+        <ul ref={targetListRef}>
           {pillars.map((pillar) => (
             <MobilePillar
               key={pillar.key}
@@ -207,16 +271,41 @@ export function MobileAltar() {
       </section>
 
       <footer className="mobile-altar__declare">
-        <p>
-          {remaining > 0 ? `남은 선포 ${remaining}회` : '선포를 모두 사용했다 · 시대 마감을 권장한다'}
-        </p>
+        <p aria-live="polite">{proclaimReason}</p>
         <motion.button
           type="button"
-          whileTap={canProclaim ? { scale: 0.985 } : undefined}
+          className={holding ? 'is-holding' : ''}
+          whileTap={canProclaim ? { scale: 0.96 } : undefined}
           disabled={!canProclaim}
-          onClick={() => selectedInstance && proclaimInstance(selectedInstance.instanceId)}
+          onPointerDown={(event) => {
+            if (!canProclaim || reduceMotion) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            holdCompleted.current = false
+            setHoldHint(false)
+            setHolding(true)
+            holdRef.current = window.setTimeout(finishProclamation, 400)
+          }}
+          onPointerUp={() => {
+            const completed = holdCompleted.current
+            clearHold()
+            if (!completed) setHoldHint(true)
+          }}
+          onPointerCancel={clearHold}
+          onClick={(event) => {
+            if (!canProclaim) return
+            if (!reduceMotion) {
+              if (event.detail === 0) setHoldHint(true)
+              return
+            }
+            if (reducedConfirm) finishProclamation()
+            else {
+              holdCompleted.current = false
+              setReducedConfirm(true)
+            }
+          }}
         >
-          선 포 하 다
+          <span aria-hidden className="mobile-altar__hold-fill" />
+          <span className="mobile-altar__hold-label">선 포 하 다</span>
         </motion.button>
       </footer>
     </section>
