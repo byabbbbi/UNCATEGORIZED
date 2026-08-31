@@ -1,0 +1,68 @@
+.mobile-onboarding {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-onboarding {
+    position: fixed;
+    z-index: 245;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--form-light) 96%, var(--gold));
+    box-shadow: 0 4px 14px rgba(14, 18, 16, 0.16);
+    color: var(--ink);
+    font-family: var(--font-decree);
+    font-size: 12px;
+    pointer-events: none;
+  }
+
+  .mobile-onboarding--combo {
+    right: 14px;
+    bottom: calc(148px + env(safe-area-inset-bottom));
+    left: 14px;
+  }
+
+  .mobile-onboarding--combo p {
+    margin-left: 18px;
+  }
+
+  .mobile-onboarding__demo-card {
+    position: absolute;
+    left: 50%;
+    display: grid;
+    width: 30px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid var(--seal);
+    border-radius: 3px;
+    background: var(--form-light);
+    box-shadow: 0 3px 8px rgba(14, 18, 16, 0.16);
+  }
+
+  .mobile-onboarding--altar {
+    right: 18px;
+    bottom: calc(66px + env(safe-area-inset-bottom));
+    left: 18px;
+  }
+
+  .mobile-onboarding--proclaim {
+    top: calc(64px + env(safe-area-inset-top));
+    right: 18px;
+    left: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-onboarding__demo-card {
+    display: none;
+  }
+
+  .mobile-onboarding--combo p {
+    margin-left: 0;
+  }
+}

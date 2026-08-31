@@ -107,6 +107,7 @@ function CanvasCard({
   } | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [touchDragging, setTouchDragging] = useState(false)
+  const [touchPressed, setTouchPressed] = useState(false)
   const reserved = reservedSlot >= 0
 
   const mx = useMotionValue(x)
@@ -131,7 +132,7 @@ function CanvasCard({
 
   return (
     <motion.div
-      className={`canvas-card${rerecord ? ' is-rerecord' : ''}${reserved ? ' is-combo-reserved' : ''}`}
+      className={`canvas-card${rerecord ? ' is-rerecord' : ''}${reserved ? ' is-combo-reserved' : ''}${touchPressed ? ' is-touch-pressed' : ''}`}
       style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: touchDragging || selected || rerecord ? 24 : 5 }}
       initial={
         spawnPop
@@ -140,12 +141,13 @@ function CanvasCard({
             ? { scale: 0.7, opacity: 0 }
             : false
       }
-      animate={{ scale: touchDragging ? 1.06 : selected ? 1.03 : 1, opacity: 1, rotate: tilt }}
+      animate={{ scale: touchDragging ? 1.06 : touchPressed ? 0.96 : selected ? 1.03 : 1, opacity: 1, rotate: tilt }}
       transition={{ type: 'spring', stiffness: 460, damping: 19 }}
       onPointerDown={(event) => {
         if (locked || concept.deleted) return
         const mobile = isMobileViewport()
         if (!mobile) selectInstance(instanceId)
+        setTouchPressed(mobile)
         setHoverConcept(conceptId)
         boardRef.current = document.querySelector('.canvas-board')
         pointer.current = {
@@ -192,6 +194,7 @@ function CanvasCard({
         if (!active.dragging && Math.hypot(dx, dy) < 8) return
         if (!active.dragging) {
           active.dragging = true
+          setTouchPressed(false)
           if (longPressTimer.current) clearTimeout(longPressTimer.current)
           setTouchDragging(active.pointerType === 'touch')
           sfx.pick()
@@ -207,6 +210,7 @@ function CanvasCard({
         if (longPressTimer.current) clearTimeout(longPressTimer.current)
         pointer.current = null
         setTouchDragging(false)
+        setTouchPressed(false)
         setDrawerHighlight(false)
         if (!active.dragging) {
           if (!active.longPressed && !active.cancelled && isMobileViewport()) {
@@ -244,6 +248,7 @@ function CanvasCard({
         if (longPressTimer.current) clearTimeout(longPressTimer.current)
         pointer.current = null
         setTouchDragging(false)
+        setTouchPressed(false)
         setDrawerHighlight(false)
         mx.set(x)
         my.set(y)

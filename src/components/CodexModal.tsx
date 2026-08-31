@@ -10,7 +10,11 @@ type SortMode = 'recent' | 'name' | 'depth'
 
 const INITIAL_IDS = new Set(['void', 'spark', 'clay', 'tide'])
 
-export function CodexModal() {
+export function CodexModal({
+  onMobileClose,
+}: {
+  onMobileClose?: () => void
+}) {
   const open = useGameStore((s) => s.codexOpen)
   const closeCodex = useGameStore((s) => s.closeCodex)
   const concepts = useGameStore((s) => s.concepts)
@@ -21,11 +25,16 @@ export function CodexModal() {
 
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortMode>('recent')
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pillarStability = pillarStabilityMap(pillars)
   const mobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(max-width: 767px)').matches
+  const requestClose = () => {
+    if (mobile) onMobileClose?.()
+    else closeCodex()
+  }
 
   useEffect(() => {
     if (!open) return
@@ -39,12 +48,26 @@ export function CodexModal() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && open) {
         e.preventDefault()
-        closeCodex()
+        requestClose()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, closeCodex])
+  }, [open, closeCodex, onMobileClose, mobile])
+
+  useEffect(() => {
+    if (!open || !mobile) return
+    const visualViewport = window.visualViewport
+    const updateHeight = () =>
+      setViewportHeight(visualViewport?.height ?? window.innerHeight)
+    updateHeight()
+    visualViewport?.addEventListener('resize', updateHeight)
+    visualViewport?.addEventListener('scroll', updateHeight)
+    return () => {
+      visualViewport?.removeEventListener('resize', updateHeight)
+      visualViewport?.removeEventListener('scroll', updateHeight)
+    }
+  }, [open, mobile])
 
   const recentIndex = useMemo(() => {
     const map = new Map<string, number>()
@@ -87,11 +110,16 @@ export function CodexModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) closeCodex()
+            if (e.target === e.currentTarget) requestClose()
           }}
         >
           <motion.div
             className="codex__panel"
+            style={
+              viewportHeight
+                ? { ['--mobile-viewport-height' as string]: `${viewportHeight}px` }
+                : undefined
+            }
             initial={{ y: mobile ? '100%' : 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: mobile ? '100%' : 12, opacity: 0 }}
@@ -103,7 +131,7 @@ export function CodexModal() {
                 <h2>대장 · CODEX</h2>
                 <span className="codex__count">{concepts.length}개</span>
               </div>
-              <button type="button" className="vault__close" onClick={closeCodex}>
+              <button type="button" className="vault__close" onClick={requestClose}>
                 ✕
               </button>
             </header>

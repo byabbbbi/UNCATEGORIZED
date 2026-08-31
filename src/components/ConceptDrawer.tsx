@@ -106,6 +106,9 @@ function DrawerChip({
         clearDrag()
       }}
       onPointerCancel={clearDrag}
+      onContextMenu={(event) => {
+        if (isMobileViewport()) event.preventDefault()
+      }}
       onMouseEnter={() => setHoverConcept(concept.id)}
       onFocus={() => setHoverConcept(concept.id)}
     >
@@ -125,7 +128,11 @@ function DrawerChip({
   )
 }
 
-export function ConceptDrawer() {
+export function ConceptDrawer({
+  onMobileOpenCodex,
+}: {
+  onMobileOpenCodex?: () => void
+}) {
   const concepts = useGameStore((s) => s.concepts)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
   const shards = useGameStore((s) => s.shards)
@@ -183,7 +190,10 @@ export function ConceptDrawer() {
       <button
         type="button"
         className="drawer__codex"
-        onClick={openCodex}
+        onClick={() => {
+          if (isMobileViewport()) onMobileOpenCodex?.()
+          else openCodex()
+        }}
         title="전체 대장 보기"
       >
         전체 {concepts.length}

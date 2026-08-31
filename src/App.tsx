@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
 import { MobileComboToast } from './components/MobileComboToast'
+import {
+  MobileOnboarding,
+  type MobileOnboardingStep,
+} from './components/MobileOnboarding'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
@@ -17,11 +21,27 @@ import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { useGameStore } from './store/gameStore'
 import { unlockAudio } from './sfx'
+import {
+  hapticsEnabled,
+  setHapticsEnabled,
+  supportsHaptics,
+} from './mobileFeedback'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
+import './styles/mobileFeedback.css'
 
 type MobileSheet = 'rules' | 'chronicle'
 type MobileView = 'workshop' | 'altar'
+const MOBILE_ONBOARDING_KEY = 'uncat-mobile-onboarding-v1'
+
+function initialMobileOnboarding(): MobileOnboardingStep {
+  try {
+    const saved = localStorage.getItem(MOBILE_ONBOARDING_KEY)
+    return saved === 'done' ? 'done' : 'combo'
+  } catch {
+    return 'combo'
+  }
+}
 
 function applyDecay(count: number) {
   const root = document.documentElement
@@ -45,6 +65,9 @@ export default function App() {
   const discoveredIds = useGameStore((s) => s.discoveredIds)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const message = useGameStore((s) => s.message)
+  const mobileComboToast = useGameStore((s) => s.mobileComboToast)
+  const gameMode = useGameStore((s) => s.gameMode)
+  const stats = useGameStore((s) => s.stats)
   const muted = useGameStore((s) => s.muted)
   const collapsed = useGameStore((s) => s.collapsed)
   const fx = useGameStore((s) => s.fx)
@@ -67,12 +90,93 @@ export default function App() {
   const [mobileView, setMobileView] = useState<MobileView>('workshop')
   const [mobilePrecedentOpen, setMobilePrecedentOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [hapticsOn, setHapticsOn] = useState(() => hapticsEnabled())
+  const hapticsAvailable = supportsHaptics()
+  const [mobileOnboarding, setMobileOnboarding] = useState<MobileOnboardingStep>(
+    initialMobileOnboarding,
+  )
+  const mobileHistoryIgnorePop = useRef(false)
 
   const discoveryCount = discoveredIds.length
   const remainingDeclares = Math.max(
     0,
     MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra,
   )
+
+  const isMobile = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
+  const pushMobileHistory = (kind: string, view = mobileView) => {
+    if (!isMobile()) return
+    window.history.pushState(
+      {
+        ...(window.history.state ?? {}),
+        uncatMobile: { kind, view },
+      },
+      '',
+    )
+  }
+  const discardMobileHistory = () => {
+    if (!isMobile() || !window.history.state?.uncatMobile) return
+    mobileHistoryIgnorePop.current = true
+    window.history.back()
+  }
+  const openMobileMenu = () => {
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false)
+      discardMobileHistory()
+      return
+    }
+    pushMobileHistory('menu')
+    setMobileMenuOpen(true)
+  }
+  const openMobileSheet = (sheet: MobileSheet) => {
+    if (!mobileMenuOpen) pushMobileHistory('sheet')
+    setMobileMenuOpen(false)
+    setMobileSheet(sheet)
+  }
+  const closeMobileSheet = () => {
+    setMobileSheet(null)
+    discardMobileHistory()
+  }
+  const openMobilePrecedent = () => {
+    pushMobileHistory('precedent')
+    setMobilePrecedentOpen(true)
+  }
+  const closeMobilePrecedent = () => {
+    setMobilePrecedentOpen(false)
+    discardMobileHistory()
+  }
+  const openMobileCodex = () => {
+    pushMobileHistory('codex')
+    openCodex()
+  }
+  const closeMobileCodex = () => {
+    closeCodex()
+    discardMobileHistory()
+  }
+  const openMobileAltar = () => {
+    pushMobileHistory('altar', 'altar')
+    clearMobileComboSlots()
+    setMobileView('altar')
+  }
+  const returnToWorkshop = () => {
+    if (mobileView === 'altar') discardMobileHistory()
+    setMobileView('workshop')
+  }
+  const closeConfirmation = () => {
+    setConfirmation(null)
+    discardMobileHistory()
+  }
+  const setMobileOnboardingStep = (step: MobileOnboardingStep) => {
+    setMobileOnboarding(step)
+    if (step !== 'done') return
+    try {
+      localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done')
+    } catch {
+      /* 첫 판 안내는 저장에 실패해도 현재 세션에서만 마친다. */
+    }
+  }
 
   useEffect(() => {
     applyDecay(collapsed.length)
@@ -113,6 +217,48 @@ export default function App() {
     query.addEventListener('change', closeMobileOverlays)
     return () => query.removeEventListener('change', closeMobileOverlays)
   }, [])
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (!isMobile()) return
+      if (mobileHistoryIgnorePop.current) {
+        mobileHistoryIgnorePop.current = false
+        return
+      }
+      const hasMobileLayer =
+        !!mobileSheet ||
+        mobileMenuOpen ||
+        mobilePrecedentOpen ||
+        codexOpen ||
+        !!confirmation ||
+        mobileView === 'altar'
+      if (!hasMobileLayer) return
+      const restoreView = event.state?.uncatMobile?.view
+      setMobileSheet(null)
+      setMobileMenuOpen(false)
+      setMobilePrecedentOpen(false)
+      setConfirmation(null)
+      if (codexOpen) closeCodex()
+      setMobileView(restoreView === 'altar' ? 'altar' : 'workshop')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [mobileSheet, mobileMenuOpen, mobilePrecedentOpen, codexOpen, confirmation, mobileView, closeCodex])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'combo') return
+    if (mobileComboToast) setMobileOnboardingStep('altar')
+  }, [gameMode, mobileComboToast, mobileOnboarding])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'altar') return
+    if (mobileView === 'altar') setMobileOnboardingStep('proclaim')
+  }, [gameMode, mobileOnboarding, mobileView])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'proclaim') return
+    if (stats.proclamations > 0) setMobileOnboardingStep('done')
+  }, [gameMode, mobileOnboarding, stats.proclamations])
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -212,7 +358,7 @@ export default function App() {
             <button
               type="button"
               className="topbar__more"
-              onClick={() => setMobileMenuOpen((open) => !open)}
+              onClick={openMobileMenu}
               aria-label="게임 메뉴"
               aria-expanded={mobileMenuOpen}
             >
@@ -248,10 +394,10 @@ export default function App() {
             <CaseBanner />
             <CanvasBoard
               onMobileCardTap={queueMobileComboInstance}
-              onMobileCardLongPress={() => setMobilePrecedentOpen(true)}
+              onMobileCardLongPress={openMobilePrecedent}
             />
             <MobileComboTray />
-            <ConceptDrawer />
+            <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
             <MobileComboToast />
             <StatStrip />
           </div>
@@ -262,18 +408,15 @@ export default function App() {
               type="button"
               className={mobileView === 'workshop' ? 'is-active' : ''}
               aria-current={mobileView === 'workshop' ? 'page' : undefined}
-              onClick={() => setMobileView('workshop')}
+              onClick={returnToWorkshop}
             >
               공방
             </button>
             <button
               type="button"
-              className={mobileView === 'altar' ? 'is-active' : ''}
+              className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
               aria-current={mobileView === 'altar' ? 'page' : undefined}
-              onClick={() => {
-                clearMobileComboSlots()
-                setMobileView('altar')
-              }}
+              onClick={openMobileAltar}
             >
               <span>제단</span>
               {remainingDeclares > 0 ? (
@@ -294,7 +437,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onPointerDown={(event) => {
-              if (event.target === event.currentTarget) setMobileSheet(null)
+              if (event.target === event.currentTarget) closeMobileSheet()
             }}
           >
             <motion.section
@@ -312,7 +455,7 @@ export default function App() {
                 <h2>{mobileSheet === 'rules' ? '생성 규칙' : '연대기'}</h2>
                 <button
                   type="button"
-                  onClick={() => setMobileSheet(null)}
+                  onClick={closeMobileSheet}
                   aria-label="시트 닫기"
                 >
                   ✕
@@ -332,7 +475,10 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onPointerDown={(event) => {
-              if (event.target === event.currentTarget) setMobileMenuOpen(false)
+              if (event.target === event.currentTarget) {
+                setMobileMenuOpen(false)
+                discardMobileHistory()
+              }
             }}
           >
             <motion.div
@@ -342,16 +488,16 @@ export default function App() {
               exit={{ y: -8, opacity: 0 }}
               onPointerDown={(event) => event.stopPropagation()}
             >
-              <button type="button" onClick={() => { setMobileSheet('rules'); setMobileMenuOpen(false) }}>
+              <button type="button" onClick={() => openMobileSheet('rules')}>
                 생성 규칙
               </button>
-              <button type="button" onClick={() => { setMobileSheet('chronicle'); setMobileMenuOpen(false) }}>
+              <button type="button" onClick={() => openMobileSheet('chronicle')}>
                 연대기
               </button>
-              <button type="button" onClick={() => { endEra(); setMobileMenuOpen(false) }}>
+              <button type="button" onClick={() => { endEra(); setMobileMenuOpen(false); discardMobileHistory() }}>
                 시대 마감
               </button>
-              <button type="button" onClick={() => { tidyCanvas(); setMobileMenuOpen(false) }}>
+              <button type="button" onClick={() => { tidyCanvas(); setMobileMenuOpen(false); discardMobileHistory() }}>
                 정리
               </button>
               <button type="button" onClick={() => { setConfirmation('title'); setMobileMenuOpen(false) }}>
@@ -360,8 +506,22 @@ export default function App() {
               <button type="button" onClick={() => { setConfirmation('reset'); setMobileMenuOpen(false) }}>
                 초기화
               </button>
-              <button type="button" onClick={() => { toggleMute(); setMobileMenuOpen(false) }}>
+              <button type="button" onClick={() => { toggleMute(); setMobileMenuOpen(false); discardMobileHistory() }}>
                 {muted ? '소리 켜기' : '음소거'}
+              </button>
+              <button
+                type="button"
+                className="mobile-menu__haptics"
+                role="switch"
+                aria-checked={hapticsOn}
+                disabled={!hapticsAvailable}
+                onClick={() => {
+                  const next = !hapticsOn
+                  setHapticsOn(next)
+                  setHapticsEnabled(next)
+                }}
+              >
+                진동 <span>{hapticsAvailable ? (hapticsOn ? '켜짐' : '꺼짐') : '미지원'}</span>
               </button>
             </motion.div>
           </motion.div>
@@ -376,7 +536,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onPointerDown={(event) => {
-              if (event.target === event.currentTarget) setMobilePrecedentOpen(false)
+              if (event.target === event.currentTarget) closeMobilePrecedent()
             }}
           >
             <motion.section
@@ -398,14 +558,14 @@ export default function App() {
                     disabled={!selectedInstanceId || fx.inputLocked}
                     onClick={() => {
                       if (selectedInstanceId) duplicateInstance(selectedInstanceId)
-                      setMobilePrecedentOpen(false)
+                      closeMobilePrecedent()
                     }}
                   >
                     복제
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMobilePrecedentOpen(false)}
+                    onClick={closeMobilePrecedent}
                     aria-label="판례 닫기"
                   >
                     ✕
@@ -426,7 +586,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmation(null)
+              if (e.target === e.currentTarget) closeConfirmation()
             }}
           >
             <motion.div
@@ -448,7 +608,7 @@ export default function App() {
                 <button
                   type="button"
                   className="confirm-reset__cancel"
-                  onClick={() => setConfirmation(null)}
+                  onClick={closeConfirmation}
                 >
                   취소
                 </button>
@@ -458,6 +618,7 @@ export default function App() {
                   onClick={() => {
                     const action = confirmation
                     setConfirmation(null)
+                    discardMobileHistory()
                     if (action === 'title') returnToTitle()
                     else reset()
                   }}
@@ -471,7 +632,8 @@ export default function App() {
       </AnimatePresence>
 
       <VaultModal />
-      <CodexModal />
+      <CodexModal onMobileClose={closeMobileCodex} />
+      {gameMode !== 'demo' && <MobileOnboarding step={mobileOnboarding} />}
       {screen === 'ending' && <EndingScreen />}
       <DebugBadge />
     </div>
