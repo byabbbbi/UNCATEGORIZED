@@ -593,6 +593,19 @@
     display: block;
   }
 
+  .mobile-precedent__actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mobile-precedent__duplicate {
+    width: auto !important;
+    min-width: 52px;
+    padding: 0 9px;
+    color: var(--seal) !important;
+    font-family: var(--font-decree);
+  }
+
   .confirm-reset {
     padding:
       calc(16px + env(safe-area-inset-top))

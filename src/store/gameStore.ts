@@ -50,6 +50,7 @@ import type {
   EraCaseState,
   FxState,
   GameMode,
+  MobileComboSlot,
   Pillar,
   PillarKey,
   ScreenMode,
@@ -147,6 +148,8 @@ export interface GameStore {
   fx: FxState
   stats: GameStats
   codexOpen: boolean
+  mobileComboSlots: [MobileComboSlot | null, MobileComboSlot | null]
+  mobileComboPreparing: boolean
 
   startFresh: () => void
   startContinue: () => void
@@ -159,6 +162,10 @@ export interface GameStore {
   setTargetPillar: (key: PillarKey | null) => void
   spawnFromDrawer: (conceptId: string, x: number, y: number) => void
   duplicateInstance: (instanceId: string) => void
+  queueMobileComboInstance: (instanceId: string) => void
+  queueMobileComboConcept: (conceptId: string) => void
+  removeMobileComboSlot: (index: 0 | 1) => void
+  clearMobileComboSlots: () => void
   setInstancePos: (instanceId: string, x: number, y: number) => void
   dismissInstance: (instanceId: string) => void
   setDrawerHighlight: (on: boolean) => void
@@ -221,6 +228,10 @@ function createPlayState(opts?: {
   | 'setTargetPillar'
   | 'spawnFromDrawer'
   | 'duplicateInstance'
+  | 'queueMobileComboInstance'
+  | 'queueMobileComboConcept'
+  | 'removeMobileComboSlot'
+  | 'clearMobileComboSlots'
   | 'setInstancePos'
   | 'dismissInstance'
   | 'setDrawerHighlight'
@@ -286,6 +297,8 @@ function createPlayState(opts?: {
       fx: emptyFx(),
       stats: { discoveries: concepts.length, proclamations: 8, resignations: 2 },
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
     }
   }
 
@@ -335,6 +348,8 @@ function createPlayState(opts?: {
       fx: emptyFx(),
       stats: { discoveries: 0, proclamations: 0, resignations: collapsed.length },
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
     }
   }
 
@@ -372,6 +387,8 @@ function createPlayState(opts?: {
     fx: emptyFx(),
     stats: { discoveries: 0, proclamations: 0, resignations: 0 },
     codexOpen: false,
+    mobileComboSlots: [null, null],
+    mobileComboPreparing: false,
   }
 }
 
@@ -501,6 +518,23 @@ function reduceMotion(): boolean {
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
+}
+
+function isMobileViewport() {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
+  )
+}
+
+function mobileBoardCenter() {
+  const board = document.querySelector<HTMLElement>('.canvas-board')
+  if (!board) return { x: 180, y: 160 }
+  const rect = board.getBoundingClientRect()
+  return {
+    x: rect.width / 2,
+    y: Math.max(CARD_H / 2 + 18, rect.height / 2),
+  }
 }
 
 function triggerEnding(kind: Exclude<EndingKind, null>) {
@@ -937,26 +971,20 @@ function resolveSlot(
   }, isRerecord ? 2500 : 900)
 }
 
-function combineAt(
-  aId: string,
-  bId: string,
+function beginCombination(
+  a: Concept,
+  b: Concept,
+  consumedInstanceIds: string[],
   point: { x: number; y: number },
 ) {
   const s = useGameStore.getState()
   if (s.fx.inputLocked || s.screen !== 'play') return
 
-  const aInst = s.instances.find((i) => i.instanceId === aId)
-  const bInst = s.instances.find((i) => i.instanceId === bId)
-  if (!aInst || !bInst || aInst.processing || bInst.processing) return
-
-  const a = s.concepts.find((c) => c.id === aInst.conceptId)
-  const b = s.concepts.find((c) => c.id === bInst.conceptId)
-  if (!a || !b) return
-
   if (a.deleted || b.deleted) {
     useGameStore.setState({ message: '삭제된 개념은 조합할 수 없다' })
     sfx.reject()
-    shakeReject(aId)
+    const firstInput = consumedInstanceIds[0]
+    if (firstInput) shakeReject(firstInput)
     return
   }
 
@@ -972,7 +1000,7 @@ function combineAt(
   useGameStore.setState({
     instances: [
       ...s.instances.filter(
-        (i) => i.instanceId !== aId && i.instanceId !== bId,
+        (i) => !consumedInstanceIds.includes(i.instanceId),
       ),
       slot,
     ],
@@ -996,6 +1024,54 @@ function combineAt(
         world.contaminants,
       ),
     )
+}
+
+function combineAt(
+  aId: string,
+  bId: string,
+  point: { x: number; y: number },
+) {
+  const s = useGameStore.getState()
+  const aInst = s.instances.find((i) => i.instanceId === aId)
+  const bInst = s.instances.find((i) => i.instanceId === bId)
+  if (!aInst || !bInst || aInst.processing || bInst.processing) return
+  const a = s.concepts.find((c) => c.id === aInst.conceptId)
+  const b = s.concepts.find((c) => c.id === bInst.conceptId)
+  if (!a || !b) return
+  beginCombination(a, b, [aId, bId], point)
+}
+
+function scheduleMobileCombination() {
+  const s = useGameStore.getState()
+  const [first, second] = s.mobileComboSlots
+  if (!first || !second || s.mobileComboPreparing) return
+
+  useGameStore.setState({ mobileComboPreparing: true })
+  window.setTimeout(() => {
+    const current = useGameStore.getState()
+    const [aSlot, bSlot] = current.mobileComboSlots
+    if (!current.mobileComboPreparing || !aSlot || !bSlot) return
+
+    const a = current.concepts.find((concept) => concept.id === aSlot.conceptId)
+    const b = current.concepts.find((concept) => concept.id === bSlot.conceptId)
+    const consumed = [aSlot.instanceId, bSlot.instanceId].filter(
+      (id): id is string => !!id,
+    )
+    const missingCanvasInput = [aSlot, bSlot].some(
+      (slot) =>
+        slot.instanceId &&
+        !current.instances.some(
+          (instance) =>
+            instance.instanceId === slot.instanceId && !instance.processing,
+        ),
+    )
+    useGameStore.setState({
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+    })
+    if (!a || !b || missingCanvasInput) return
+    beginCombination(a, b, consumed, mobileBoardCenter())
+  }, 250)
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -1050,6 +1126,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fx: emptyFx(),
       stats: save.stats,
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
     })
   },
 
@@ -1103,6 +1181,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fx: emptyFx(),
       stats: save.stats,
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
     })
   },
 
@@ -1182,6 +1262,76 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }, 500)
   },
 
+  queueMobileComboInstance: (instanceId) => {
+    const s = get()
+    if (!isMobileViewport() || s.fx.inputLocked || s.mobileComboPreparing) return
+    const inst = s.instances.find((item) => item.instanceId === instanceId)
+    const concept = s.concepts.find((item) => item.id === inst?.conceptId)
+    if (!inst || inst.processing || !concept || concept.deleted) return
+
+    const existingIndex = s.mobileComboSlots.findIndex(
+      (slot) => slot?.instanceId === instanceId,
+    )
+    if (existingIndex >= 0) {
+      const next = [...s.mobileComboSlots] as [
+        MobileComboSlot | null,
+        MobileComboSlot | null,
+      ]
+      next[existingIndex] = null
+      set({ mobileComboSlots: next })
+      return
+    }
+
+    const emptyIndex = s.mobileComboSlots.findIndex((slot) => !slot)
+    if (emptyIndex < 0) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[emptyIndex] = {
+      id: uid('mobile-canvas'),
+      conceptId: concept.id,
+      instanceId,
+      source: 'canvas',
+    }
+    set({ mobileComboSlots: next })
+    if (next[0] && next[1]) scheduleMobileCombination()
+  },
+
+  queueMobileComboConcept: (conceptId) => {
+    const s = get()
+    if (!isMobileViewport() || s.fx.inputLocked || s.mobileComboPreparing) return
+    const concept = s.concepts.find((item) => item.id === conceptId)
+    if (!concept || concept.deleted) return
+    const emptyIndex = s.mobileComboSlots.findIndex((slot) => !slot)
+    if (emptyIndex < 0) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[emptyIndex] = {
+      id: uid('mobile-drawer'),
+      conceptId,
+      source: 'drawer',
+    }
+    set({ mobileComboSlots: next })
+    if (next[0] && next[1]) scheduleMobileCombination()
+  },
+
+  removeMobileComboSlot: (index) => {
+    const s = get()
+    if (s.mobileComboPreparing || !s.mobileComboSlots[index]) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[index] = null
+    set({ mobileComboSlots: next })
+  },
+
+  clearMobileComboSlots: () =>
+    set({ mobileComboSlots: [null, null], mobileComboPreparing: false }),
+
   setInstancePos: (instanceId, x, y) => {
     set((s) => ({
       instances: s.instances.map((i) =>
@@ -1197,6 +1347,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       instances: s.instances.filter((i) => i.instanceId !== instanceId),
       selectedInstanceId:
         s.selectedInstanceId === instanceId ? null : s.selectedInstanceId,
+      mobileComboSlots: s.mobileComboSlots.map((slot) =>
+        slot?.instanceId === instanceId ? null : slot,
+      ) as [MobileComboSlot | null, MobileComboSlot | null],
       fx: { ...s.fx, drawerHighlight: false },
       message: '카드를 서랍으로 치웠다',
     })
@@ -1311,6 +1464,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       eraCase: settledCase,
       shards: s.shards + (rewarded ? 3 : 0),
       chronicle: settledChronicle,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
       message: noCollapseJustCompleted
         ? `제${s.era}시대 사건 종결 · 파편 +3`
         : s.message,

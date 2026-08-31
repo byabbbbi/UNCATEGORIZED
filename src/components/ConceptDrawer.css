@@ -293,6 +293,7 @@
     min-width: 64px;
     min-height: 66px;
     padding: 5px 7px;
+    touch-action: pan-x;
   }
 
   .drawer__chip span:first-child {

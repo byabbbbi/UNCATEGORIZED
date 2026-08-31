@@ -6,12 +6,18 @@ import './ConceptDrawer.css'
 const RING_R = 26
 const RING_C = 2 * Math.PI * RING_R
 
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
 function DrawerChip({
   concept,
   locked,
+  onMobileTap,
 }: {
   concept: Concept
   locked: boolean
+  onMobileTap?: (conceptId: string) => void
 }) {
   const setHoverConcept = useGameStore((s) => s.setHoverConcept)
   const spawnFromDrawer = useGameStore((s) => s.spawnFromDrawer)
@@ -20,6 +26,7 @@ function DrawerChip({
     startX: number
     startY: number
     dragging: boolean
+    scrolling: boolean
   } | null>(null)
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
     null,
@@ -48,24 +55,41 @@ function DrawerChip({
           startX: event.clientX,
           startY: event.clientY,
           dragging: false,
+          scrolling: false,
         }
-        event.currentTarget.setPointerCapture(event.pointerId)
+        if (!isMobileViewport()) event.currentTarget.setPointerCapture(event.pointerId)
       }}
       onPointerMove={(event) => {
         const active = pointer.current
         if (!active || active.id !== event.pointerId) return
-        if (
-          !active.dragging &&
-          Math.hypot(event.clientX - active.startX, event.clientY - active.startY) < 8
-        ) {
-          return
+        const dx = event.clientX - active.startX
+        const dy = event.clientY - active.startY
+        const moved = Math.hypot(dx, dy)
+        const mobile = isMobileViewport()
+        if (!active.dragging && !active.scrolling) {
+          if (moved < 8) return
+          if (mobile && Math.abs(dx) >= Math.abs(dy)) {
+            active.scrolling = true
+            return
+          }
+          active.dragging = true
+          event.currentTarget.setPointerCapture(event.pointerId)
         }
-        active.dragging = true
+        if (active.scrolling) return
         setDragPoint({ x: event.clientX, y: event.clientY })
       }}
       onPointerUp={(event) => {
         const active = pointer.current
         if (!active || active.id !== event.pointerId) return
+        const distance = Math.hypot(
+          event.clientX - active.startX,
+          event.clientY - active.startY,
+        )
+        if (isMobileViewport() && !active.dragging && !active.scrolling && distance < 8) {
+          onMobileTap?.(concept.id)
+          clearDrag()
+          return
+        }
         if (active.dragging) {
           const board = document
             .elementFromPoint(event.clientX, event.clientY)
@@ -109,6 +133,7 @@ export function ConceptDrawer() {
   const openCodex = useGameStore((s) => s.openCodex)
   const locked = useGameStore((s) => s.fx.inputLocked)
   const drawerHighlight = useGameStore((s) => s.fx.drawerHighlight)
+  const queueMobileComboConcept = useGameStore((s) => s.queueMobileComboConcept)
   const railRef = useRef<HTMLDivElement>(null)
 
   const filled = Math.min(shards, 10)
@@ -145,7 +170,12 @@ export function ConceptDrawer() {
       <div className="drawer__rail-wrap">
         <div ref={railRef} className="drawer__rail">
           {ordered.map((concept) => (
-            <DrawerChip key={concept.id} concept={concept} locked={locked} />
+            <DrawerChip
+              key={concept.id}
+              concept={concept}
+              locked={locked}
+              onMobileTap={queueMobileComboConcept}
+            />
           ))}
         </div>
       </div>

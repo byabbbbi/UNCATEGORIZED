@@ -82,6 +82,14 @@ export interface CanvasInstance {
   rerecord?: { previous: string; current: string } | null
 }
 
+/** 모바일 조합 슬롯에 잠시 예약된 입력. 서랍 입력은 캔버스에 실체를 만들지 않는다. */
+export interface MobileComboSlot {
+  id: string
+  conceptId: string
+  source: 'canvas' | 'drawer'
+  instanceId?: string
+}
+
 export type EndingKind = 'blank' | 'indistinct' | 'classified' | null
 
 export type ScreenMode = 'title' | 'play' | 'ending'

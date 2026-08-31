@@ -64,7 +64,9 @@ function CanvasCard({
   spawnPop,
   rerecord,
   tilt,
-  onTap,
+  reservedSlot,
+  onMobileTap,
+  onMobileLongPress,
 }: {
   instanceId: string
   conceptId: string
@@ -79,7 +81,9 @@ function CanvasCard({
   spawnPop: boolean
   rerecord: { previous: string; current: string } | null | undefined
   tilt: number
-  onTap?: () => void
+  reservedSlot: number
+  onMobileTap?: (instanceId: string) => void
+  onMobileLongPress?: (instanceId: string) => void
 }) {
   const concept = useGameStore((s) => s.concepts.find((c) => c.id === conceptId)!)
   const selectInstance = useGameStore((s) => s.selectInstance)
@@ -99,9 +103,11 @@ function CanvasCard({
     pointerType: string
     dragging: boolean
     longPressed: boolean
+    cancelled: boolean
   } | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [touchDragging, setTouchDragging] = useState(false)
+  const reserved = reservedSlot >= 0
 
   const mx = useMotionValue(x)
   const my = useMotionValue(y)
@@ -125,7 +131,7 @@ function CanvasCard({
 
   return (
     <motion.div
-      className={`canvas-card${rerecord ? ' is-rerecord' : ''}`}
+      className={`canvas-card${rerecord ? ' is-rerecord' : ''}${reserved ? ' is-combo-reserved' : ''}`}
       style={{ x: mx, y: my, position: 'absolute', top: 0, left: 0, zIndex: touchDragging || selected || rerecord ? 24 : 5 }}
       initial={
         spawnPop
@@ -138,7 +144,8 @@ function CanvasCard({
       transition={{ type: 'spring', stiffness: 460, damping: 19 }}
       onPointerDown={(event) => {
         if (locked || concept.deleted) return
-        selectInstance(instanceId)
+        const mobile = isMobileViewport()
+        if (!mobile) selectInstance(instanceId)
         setHoverConcept(conceptId)
         boardRef.current = document.querySelector('.canvas-board')
         pointer.current = {
@@ -150,15 +157,16 @@ function CanvasCard({
           pointerType: event.pointerType,
           dragging: false,
           longPressed: false,
+          cancelled: false,
         }
         event.currentTarget.setPointerCapture(event.pointerId)
-        if (event.pointerType === 'touch') {
+        if (mobile && event.pointerType === 'touch') {
           longPressTimer.current = setTimeout(() => {
             const active = pointer.current
             if (!active || active.dragging) return
             active.longPressed = true
-            navigator.vibrate?.(18)
-            duplicateInstance(instanceId)
+            selectInstance(instanceId)
+            onMobileLongPress?.(instanceId)
           }, 400)
         }
       }}
@@ -174,6 +182,13 @@ function CanvasCard({
         if (!active || active.id !== event.pointerId) return
         const dx = event.clientX - active.startClientX
         const dy = event.clientY - active.startClientY
+        if (reserved) {
+          if (Math.hypot(dx, dy) >= 8) {
+            active.cancelled = true
+            if (longPressTimer.current) clearTimeout(longPressTimer.current)
+          }
+          return
+        }
         if (!active.dragging && Math.hypot(dx, dy) < 8) return
         if (!active.dragging) {
           active.dragging = true
@@ -194,7 +209,9 @@ function CanvasCard({
         setTouchDragging(false)
         setDrawerHighlight(false)
         if (!active.dragging) {
-          if (!active.longPressed) onTap?.()
+          if (!active.longPressed && !active.cancelled && isMobileViewport()) {
+            onMobileTap?.(instanceId)
+          }
           return
         }
         if (pointOverDrawer(event.clientX, event.clientY)) {
@@ -231,8 +248,16 @@ function CanvasCard({
         mx.set(x)
         my.set(y)
       }}
+      onContextMenu={(event) => {
+        if (isMobileViewport()) event.preventDefault()
+      }}
     >
       {revealDiscovery && <span className="result-burst__ring" />}
+      {reserved && (
+        <span className="canvas-card__reserved" aria-hidden>
+          {reservedSlot + 1}
+        </span>
+      )}
       <IndexCard
         concept={concept}
         pillarStability={pillarStability}
@@ -259,13 +284,21 @@ function CanvasCard({
   )
 }
 
-export function CanvasBoard({ onCardTap }: { onCardTap?: () => void }) {
+export function CanvasBoard({
+  onMobileCardTap,
+  onMobileCardLongPress,
+}: {
+  onMobileCardTap?: (instanceId: string) => void
+  onMobileCardLongPress?: (instanceId: string) => void
+}) {
   const instances = useGameStore((s) => s.instances)
   const concepts = useGameStore((s) => s.concepts)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
   const pillars = useGameStore((s) => s.pillars)
   const selectedInstanceId = useGameStore((s) => s.selectedInstanceId)
   const fx = useGameStore((s) => s.fx)
+  const mobileComboSlots = useGameStore((s) => s.mobileComboSlots)
+  const mobileComboPreparing = useGameStore((s) => s.mobileComboPreparing)
   const tutorialStep = useGameStore((s) => s.tutorialStep)
   const tidyCanvas = useGameStore((s) => s.tidyCanvas)
   const endEra = useGameStore((s) => s.endEra)
@@ -286,7 +319,7 @@ export function CanvasBoard({ onCardTap }: { onCardTap?: () => void }) {
   return (
     <section
       ref={boardRef}
-      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}`}
+      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''}`}
       style={{ ['--decay' as string]: collapsedCount }}
     >
       <div className="canvas-rules" aria-hidden />
@@ -360,12 +393,16 @@ export function CanvasBoard({ onCardTap }: { onCardTap?: () => void }) {
               isDiscovery={initialDiscoveries.has(inst.conceptId)}
               selected={selectedInstanceId === inst.instanceId}
               reject={fx.rejectInstanceId === inst.instanceId}
-              locked={fx.inputLocked}
+              locked={fx.inputLocked || mobileComboPreparing}
               revealDiscovery={!!inst.revealDiscovery}
               spawnPop={!!inst.spawnPop}
               rerecord={inst.rerecord}
               tilt={cardTiltDeg(inst.conceptId, collapsedCount)}
-              onTap={onCardTap}
+              reservedSlot={mobileComboSlots.findIndex(
+                (slot) => slot?.instanceId === inst.instanceId,
+              )}
+              onMobileTap={onMobileCardTap}
+              onMobileLongPress={onMobileCardLongPress}
             />
           )
         })}
