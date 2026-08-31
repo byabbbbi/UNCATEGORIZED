@@ -248,4 +248,91 @@
       0 0 18px rgba(215, 176, 93, 0.28),
       0 3px 0 var(--mobile-wood-dark);
   }
+
+  .mobile-combo-tray__rules {
+    position: absolute;
+    left: 8px;
+    bottom: calc(100% + 5px);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: calc(100vw - 28px);
+    padding: 3px 5px;
+    border: 1px solid rgba(150, 45, 35, 0.58);
+    border-radius: 999px;
+    background: rgba(35, 38, 34, 0.9);
+    box-shadow: 0 4px 12px rgba(8, 9, 8, 0.32);
+  }
+
+  .mobile-combo-tray__rules-label {
+    padding: 0 2px;
+    color: rgba(237, 228, 205, 0.68);
+    font-family: var(--font-decree);
+    font-size: 8px;
+    white-space: nowrap;
+  }
+
+  .mobile-combo-tray__rules > button {
+    width: 25px;
+    height: 25px;
+    flex: none;
+    appearance: none;
+    border: 1.5px solid var(--seal-bright);
+    border-radius: 50%;
+    background: rgba(235, 220, 190, 0.09);
+    color: var(--seal-light);
+    font-family: var(--font-latin);
+    font-size: 8px;
+    font-weight: 700;
+    padding: 0;
+  }
+
+  .mobile-combo-tray__rules > button.is-open {
+    background: var(--seal-bright);
+    color: var(--mobile-paper);
+    box-shadow: 0 0 0 3px rgba(181, 55, 42, 0.2);
+  }
+
+  .mobile-combo-tray__rule-tooltip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 7px);
+    width: min(310px, calc(100vw - 32px));
+    padding: 10px 36px 10px 11px;
+    border: 1px solid var(--seal-light);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--mobile-night) 94%, transparent);
+    color: var(--mobile-paper);
+    box-shadow: 0 10px 25px rgba(5, 7, 6, 0.46);
+    font-family: var(--font-decree);
+  }
+
+  .mobile-combo-tray__rule-tooltip strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--seal-light);
+    font-family: var(--font-latin);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .mobile-combo-tray__rule-tooltip p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .mobile-combo-tray__rule-tooltip button {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(237, 228, 205, 0.64);
+    font-family: var(--font-decree);
+    font-size: 8px;
+    padding: 5px;
+  }
 }

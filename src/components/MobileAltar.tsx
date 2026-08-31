@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { AnimatedNumber } from './AnimatedNumber'
 import { GameGlyph } from './GameGlyph'
 import {
+  INDISTINCT_COLLAPSE_THRESHOLD,
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
   PILLAR_LATIN,
@@ -111,7 +112,12 @@ function MobilePillar({
         )}
         <span className="mobile-pillar__crack" aria-hidden />
       </button>
-      {collapsed && <p className="mobile-pillar__rule">{COLLAPSE_RULES[pillarKey]}</p>}
+      {collapsed && (
+        <p className="mobile-pillar__rule">
+          <strong>반납됨</strong>
+          <span>{COLLAPSE_RULES[pillarKey]}</span>
+        </p>
+      )}
       {detailOpen && !collapsed && (
         <p className="mobile-pillar__detail">
           “{PILLAR_QUESTIONS[pillarKey]}”<br />
@@ -131,6 +137,8 @@ export function MobileAltar() {
   const targetPillar = useGameStore((s) => s.targetPillar)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const fx = useGameStore((s) => s.fx)
+  const chronicle = useGameStore((s) => s.chronicle)
+  const collapsed = useGameStore((s) => s.collapsed)
   const locked = fx.inputLocked
   const selectInstance = useGameStore((s) => s.selectInstance)
   const setTargetPillar = useGameStore((s) => s.setTargetPillar)
@@ -162,6 +170,19 @@ export function MobileAltar() {
   const coherenceLoss = selectedConcept
     ? calcCoherenceLoss(selectedConcept.chaos, selectedConcept.plausibility)
     : null
+  const expectedProclamations =
+    selectedPillar && selectedPillar.stability > 0 && destruction && destruction > 0
+      ? Math.ceil(selectedPillar.stability / destruction)
+      : null
+  const selectedPillarHistory = targetPillar
+    ? chronicle.filter((item) =>
+        item.text.includes(`${PILLAR_KO[targetPillar]}에 선포했다.`),
+      ).length
+    : 0
+  const collapsesUntilIndistinct = Math.max(
+    0,
+    INDISTINCT_COLLAPSE_THRESHOLD - collapsed.length,
+  )
   const reduceMotion =
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -290,6 +311,42 @@ export function MobileAltar() {
             />
           ))}
         </ul>
+        {targetPillar && selectedPillar && selectedPillar.stability > 0 && (
+          <motion.aside
+            key={targetPillar}
+            className="mobile-altar__pillar-detail-panel"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            aria-label={`${PILLAR_LATIN[targetPillar]} 상세`}
+          >
+            <header>
+              <div>
+                <strong>{PILLAR_LATIN[targetPillar]}</strong>
+                <span> · {PILLAR_KO[targetPillar]}</span>
+              </div>
+              <em>
+                안정도 {Math.round(selectedPillar.stability)} ·{' '}
+                {PHASE_LABEL[pillarPhase(selectedPillar.stability)]}
+              </em>
+            </header>
+            <p className="mobile-altar__pillar-question">
+              “{PILLAR_QUESTIONS[targetPillar]}”
+            </p>
+            <div className="mobile-altar__future-rule">
+              <span>◈ 무너지면 세계에 추가될 규칙</span>
+              <strong>{COLLAPSE_RULES[targetPillar]}</strong>
+            </div>
+            <p className="mobile-altar__pillar-forecast">
+              {expectedProclamations !== null && (
+                <>예상 선포 {expectedProclamations}회 후 붕괴 · </>
+              )}
+              {selectedPillarHistory > 0
+                ? `이 기둥에 ${selectedPillarHistory}회 선포함`
+                : '이 기둥에 선포한 기록 없음'}
+            </p>
+            <small>무구별 엔딩까지 남은 붕괴 {collapsesUntilIndistinct}</small>
+          </motion.aside>
+        )}
       </section>
 
       <footer className="mobile-altar__declare">

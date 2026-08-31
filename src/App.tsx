@@ -21,6 +21,7 @@ import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { GameGlyph } from './components/GameGlyph'
 import { useGameStore } from './store/gameStore'
+import { flushSave } from './persist/runSave'
 import { unlockAudio } from './sfx'
 import {
   hapticsEnabled,
@@ -66,6 +67,7 @@ export default function App() {
   const shards = useGameStore((s) => s.shards)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
+  const eraCase = useGameStore((s) => s.eraCase)
   const message = useGameStore((s) => s.message)
   const mobileComboToast = useGameStore((s) => s.mobileComboToast)
   const gameMode = useGameStore((s) => s.gameMode)
@@ -85,7 +87,7 @@ export default function App() {
   const clearMobileComboSlots = useGameStore((s) => s.clearMobileComboSlots)
   const selectedInstanceId = useGameStore((s) => s.selectedInstanceId)
   const duplicateInstance = useGameStore((s) => s.duplicateInstance)
-  const [confirmation, setConfirmation] = useState<'title' | 'reset' | null>(
+  const [confirmation, setConfirmation] = useState<'title' | 'reset' | 'endEra' | null>(
     null,
   )
   const [mobileSheet, setMobileSheet] = useState<MobileSheet | null>(null)
@@ -166,6 +168,18 @@ export default function App() {
     if (mobileView === 'altar') discardMobileHistory()
     setMobileView('workshop')
   }
+  const requestEndEra = () => {
+    if (proclamationsThisEra <= 0 || fx.inputLocked) return
+    const noCollapseWillComplete =
+      eraCase.id === 'noCollapse' &&
+      collapsed.length === eraCase.collapsedAtStart
+    if (!eraCase.completed && !noCollapseWillComplete) {
+      if (isMobile() && !mobileMenuOpen) pushMobileHistory('confirmation')
+      setConfirmation('endEra')
+      return
+    }
+    endEra()
+  }
   const closeConfirmation = () => {
     setConfirmation(null)
     discardMobileHistory()
@@ -218,6 +232,19 @@ export default function App() {
     closeMobileOverlays()
     query.addEventListener('change', closeMobileOverlays)
     return () => query.removeEventListener('change', closeMobileOverlays)
+  }, [])
+
+  useEffect(() => {
+    const saveNow = () => flushSave(useGameStore.getState())
+    const onVisibilityChange = () => {
+      if (document.hidden) saveNow()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', saveNow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pagehide', saveNow)
+    }
   }, [])
 
   useEffect(() => {
@@ -409,6 +436,7 @@ export default function App() {
             <CanvasBoard
               onMobileCardTap={queueMobileComboInstance}
               onMobileCardLongPress={openMobilePrecedent}
+              onEndEra={requestEndEra}
             />
             <MobileComboTray />
             <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
@@ -434,20 +462,28 @@ export default function App() {
               <GameGlyph kind="workshop" />
               <span className="mobile-tabbar__label">공방</span>
             </button>
-            <button
-              type="button"
-              className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
-              aria-current={mobileView === 'altar' ? 'page' : undefined}
-              onClick={openMobileAltar}
-            >
-              <GameGlyph kind="altar" />
-              <span className="mobile-tabbar__label">제단</span>
-              {remainingDeclares > 0 ? (
+            {remainingDeclares > 0 ? (
+              <button
+                type="button"
+                className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
+                aria-current={mobileView === 'altar' ? 'page' : undefined}
+                onClick={openMobileAltar}
+              >
+                <GameGlyph kind="altar" />
+                <span className="mobile-tabbar__label">제단</span>
                 <b aria-label={`선포 가능 ${remainingDeclares}회`}>{remainingDeclares}</b>
-              ) : (
-                <em>시대 마감 권장</em>
-              )}
-            </button>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="is-era-cta"
+                onClick={requestEndEra}
+                disabled={fx.inputLocked}
+              >
+                <GameGlyph kind="era" />
+                <span className="mobile-tabbar__label">시대 마감</span>
+              </button>
+            )}
           </nav>
         </div>
       </motion.div>
@@ -517,8 +553,25 @@ export default function App() {
               <button type="button" onClick={() => openMobileSheet('chronicle')}>
                 연대기
               </button>
-              <button type="button" onClick={() => { endEra(); setMobileMenuOpen(false); discardMobileHistory() }}>
-                시대 마감
+              <button
+                type="button"
+                disabled={proclamationsThisEra <= 0 || fx.inputLocked}
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  const willConfirm =
+                    !eraCase.completed &&
+                    !(
+                      eraCase.id === 'noCollapse' &&
+                      collapsed.length === eraCase.collapsedAtStart
+                    )
+                  if (!willConfirm) discardMobileHistory()
+                  requestEndEra()
+                }}
+              >
+                <span>시대 마감</span>
+                {proclamationsThisEra <= 0 && (
+                  <small>이 시대에 아직 아무것도 선포하지 않았습니다</small>
+                )}
               </button>
               <button type="button" onClick={() => { tidyCanvas(); setMobileMenuOpen(false); discardMobileHistory() }}>
                 정리
@@ -619,13 +672,19 @@ export default function App() {
               exit={{ y: 8, opacity: 0 }}
               role="dialog"
               aria-label={
-                confirmation === 'title' ? '타이틀 이동 확인' : '초기화 확인'
+                confirmation === 'title'
+                  ? '타이틀 이동 확인'
+                  : confirmation === 'reset'
+                    ? '초기화 확인'
+                    : '시대 마감 확인'
               }
             >
               <p>
                 {confirmation === 'title'
                   ? '타이틀로 돌아갑니다. 진행 상황은 저장됩니다.'
-                  : '이 세계의 모든 기록이 사라집니다. 계속할까요?'}
+                  : confirmation === 'reset'
+                    ? '이 세계의 모든 기록이 사라집니다. 계속할까요?'
+                    : `제${era}시대 사건이 미완료입니다. 파편 3개를 포기합니다.`}
               </p>
               <div className="confirm-reset__actions">
                 <button
@@ -643,10 +702,15 @@ export default function App() {
                     setConfirmation(null)
                     discardMobileHistory()
                     if (action === 'title') returnToTitle()
-                    else reset()
+                    else if (action === 'reset') reset()
+                    else endEra()
                   }}
                 >
-                  {confirmation === 'title' ? '타이틀' : '초기화'}
+                  {confirmation === 'title'
+                    ? '타이틀'
+                    : confirmation === 'reset'
+                      ? '초기화'
+                      : '마감'}
                 </button>
               </div>
             </motion.div>

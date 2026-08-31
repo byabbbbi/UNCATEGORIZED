@@ -15,7 +15,7 @@ import {
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
 } from '../data/initial'
-import { COLLAPSE_RULES } from '../data/rules'
+import { COLLAPSE_RULE_EXAMPLES, COLLAPSE_RULES } from '../data/rules'
 import { createEraCase, createWorldSeed } from '../data/caseFiles'
 import { getDailyWorld, type DailyWorldConfig } from '../data/dailyWorld'
 import { pickGodLine } from '../data/godlines'
@@ -986,6 +986,7 @@ function resolveSlot(
             processing: false,
             revealDiscovery: isDiscovery || isRerecord,
             spawnPop: true,
+            ruleStampKeys: [...cur.collapsed],
             rerecord: isRerecord
               ? { previous: previousName!, current: result.name }
               : null,
@@ -1046,11 +1047,20 @@ function resolveSlot(
   window.setTimeout(() => {
     useGameStore.setState((st) => ({
       instances: st.instances.map((i) =>
+        i.instanceId === slotId ? { ...i, ruleStampKeys: undefined } : i,
+      ),
+    }))
+  }, 800)
+
+  window.setTimeout(() => {
+    useGameStore.setState((st) => ({
+      instances: st.instances.map((i) =>
         i.instanceId === slotId
           ? {
               ...i,
               revealDiscovery: false,
               spawnPop: undefined,
+              ruleStampKeys: undefined,
               rerecord: null,
             }
           : i,
@@ -1576,10 +1586,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   endEra: () => {
     const s = get()
     if (s.fx.inputLocked || s.screen !== 'play') return
+    if (s.proclamationsThisEra <= 0) {
+      set({ message: '이 시대에 아직 아무것도 선포하지 않았습니다' })
+      return
+    }
 
     const noCollapseJustCompleted =
       s.eraCase.id === 'noCollapse' &&
       !s.eraCase.completed &&
+      s.proclamationsThisEra > 0 &&
       s.collapsed.length === s.eraCase.collapsedAtStart
     const settledCase = noCollapseJustCompleted
       ? { ...s.eraCase, progress: 1, completed: true }
@@ -1782,7 +1797,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }, gradeDelayMs(grade))
   },
 
-  clearTypingRule: () => set((s) => ({ fx: { ...s.fx, typingRule: null } })),
+  clearTypingRule: () => {
+    const typingRule = get().fx.typingRule
+    const pillarKey = (
+      Object.entries(COLLAPSE_RULES) as [PillarKey, string][]
+    ).find(([, rule]) => rule === typingRule)?.[0]
+    if (!pillarKey) {
+      set((s) => ({ fx: { ...s.fx, typingRule: null } }))
+      return
+    }
+
+    const notice = `이제 모든 조합에 이 규칙이 개입합니다\n예: ${COLLAPSE_RULE_EXAMPLES[pillarKey]}`
+    set((s) => ({
+      fx: { ...s.fx, typingRule: null, godLine: notice },
+    }))
+    window.setTimeout(() => {
+      useGameStore.setState((s) => ({
+        fx: {
+          ...s.fx,
+          godLine: s.fx.godLine === notice ? null : s.fx.godLine,
+        },
+      }))
+    }, 3200)
+  },
   clearGodLine: () => set((s) => ({ fx: { ...s.fx, godLine: null } })),
 
   dismissTutorial: () => {

@@ -80,6 +80,8 @@ export interface CanvasInstance {
   spawnPop?: boolean
   /** 동일 조합쌍이 세계 상태 때문에 다른 결과를 낸 경우 */
   rerecord?: { previous: string; current: string } | null
+  /** 결과에 개입한 활성 붕괴 규칙을 잠깐 찍어 보여준다. */
+  ruleStampKeys?: PillarKey[]
 }
 
 /** 모바일 조합 슬롯에 잠시 예약된 입력. 서랍 입력은 캔버스에 실체를 만들지 않는다. */
