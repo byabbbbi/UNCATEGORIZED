@@ -12,3 +12,15 @@ export const COLLAPSE_RULES: Record<PillarKey, string> = {
   state: '소유 관계를 뒤집어라. 사물이 사람을 지니게 하라.',
   action: '행위의 주체와 대상을 뒤바꾸거나 불명확하게 하라.',
 }
+
+/** 규칙이 조합에 개입하는 방식을 설명할 때만 쓰는 짧은 예시. */
+export const COLLAPSE_RULE_EXAMPLES: Record<PillarKey, string> = {
+  substance: '배(선박) → 배(과일)',
+  quantity: '벽돌 → 벽돌 4821호',
+  quality: '벽돌 → 바삭한 벽돌',
+  time: '드론 → 고대 드론',
+  relation: '불꽃 + 점토 → 불꽃점토',
+  place: '안개 → 안개 골짜기',
+  state: '씨앗 → 씨앗 주인',
+  action: '불꽃 → 불꽃이 남긴 것',
+}

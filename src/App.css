@@ -628,11 +628,37 @@
   font-family: var(--font-decree);
   font-size: clamp(15px, 2.2vw, 20px);
   line-height: 1.55;
+  white-space: pre-line;
   color: var(--ink);
   background: color-mix(in srgb, var(--form-light) 92%, transparent);
   border: 1px solid var(--rule);
   padding: 14px 20px;
   pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-tabbar button.is-era-cta {
+    background:
+      linear-gradient(180deg, rgba(191, 61, 43, 0.23), transparent),
+      color-mix(in srgb, var(--mobile-night) 86%, var(--seal));
+    color: var(--seal-light);
+    box-shadow: inset 0 3px 0 var(--seal-bright);
+  }
+
+  .mobile-tabbar button.is-era-cta .game-glyph {
+    color: var(--seal-light);
+  }
+
+  .mobile-menu button > small {
+    display: block;
+    max-width: 190px;
+    margin-top: 2px;
+    color: color-mix(in srgb, var(--seal-light) 78%, var(--ink-dim));
+    font-family: var(--font-data);
+    font-size: 8px;
+    line-height: 1.25;
+    white-space: normal;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

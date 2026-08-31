@@ -12,7 +12,7 @@ import { useGameStore } from '../store/gameStore'
 import { hashStr } from '../generation'
 import { sfx } from '../sfx'
 import { MAX_PROCLAMATIONS_PER_ERA } from '../data/initial'
-import { ALTAR_R, CARD_H, CARD_W } from '../types'
+import { ALTAR_R, CARD_H, CARD_W, SEAL_GLYPH } from '../types'
 import type { PillarKey } from '../types'
 import { pillarStabilityMap } from '../utils/pillars'
 import './CanvasBoard.css'
@@ -64,6 +64,7 @@ function CanvasCard({
   revealDiscovery,
   spawnPop,
   rerecord,
+  ruleStampKeys,
   tilt,
   reservedSlot,
   onMobileTap,
@@ -81,6 +82,7 @@ function CanvasCard({
   revealDiscovery: boolean
   spawnPop: boolean
   rerecord: { previous: string; current: string } | null | undefined
+  ruleStampKeys: PillarKey[] | undefined
   tilt: number
   reservedSlot: number
   onMobileTap?: (instanceId: string) => void
@@ -273,6 +275,29 @@ function CanvasCard({
         className={rerecord ? 'is-rerecord-seal' : ''}
       />
       <AnimatePresence>
+        {!!ruleStampKeys?.length && (
+          <motion.div
+            className="result-rule-stamps"
+            initial={{ opacity: 0, scale: 1.4, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.86 }}
+            transition={{ duration: 0.16 }}
+            aria-label={`적용된 붕괴 규칙 ${ruleStampKeys.map((key) => SEAL_GLYPH[key]).join(', ')}`}
+          >
+            {ruleStampKeys.map((key, index) => (
+              <motion.span
+                key={key}
+                initial={{ opacity: 0, scale: 1.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.08, duration: 0.14 }}
+              >
+                {SEAL_GLYPH[key]}
+              </motion.span>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {rerecord && (
           <motion.div
             className="rerecord-caption"
@@ -293,9 +318,11 @@ function CanvasCard({
 export function CanvasBoard({
   onMobileCardTap,
   onMobileCardLongPress,
+  onEndEra,
 }: {
   onMobileCardTap?: (instanceId: string) => void
   onMobileCardLongPress?: (instanceId: string) => void
+  onEndEra: () => void
 }) {
   const instances = useGameStore((s) => s.instances)
   const concepts = useGameStore((s) => s.concepts)
@@ -307,7 +334,6 @@ export function CanvasBoard({
   const mobileComboPreparing = useGameStore((s) => s.mobileComboPreparing)
   const tutorialStep = useGameStore((s) => s.tutorialStep)
   const tidyCanvas = useGameStore((s) => s.tidyCanvas)
-  const endEra = useGameStore((s) => s.endEra)
   const coherence = useGameStore((s) => s.coherence)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
   const collapsedCount = useGameStore((s) => s.collapsed.length)
@@ -322,6 +348,8 @@ export function CanvasBoard({
   const eraRemainingZero =
     proclamationsThisEra >= MAX_PROCLAMATIONS_PER_ERA
   const eraUrgent = eraRemainingZero || coherence <= 30
+  const eraEndLocked = proclamationsThisEra <= 0
+  const eraEndReason = '이 시대에 아직 아무것도 선포하지 않았습니다'
   const isCompactMobileBoard = instances.length <= 5
 
   useEffect(() => {
@@ -358,9 +386,9 @@ export function CanvasBoard({
         <button
           type="button"
           className={`canvas-tool canvas-tool--era${eraRemainingZero ? ' is-urgent' : ''}`}
-          onClick={endEra}
-          disabled={fx.inputLocked}
-          title="시대 마감"
+          onClick={onEndEra}
+          disabled={fx.inputLocked || eraEndLocked}
+          title={eraEndLocked ? eraEndReason : '시대 마감'}
         >
           <span className="canvas-tool__label">시대 마감</span>
         </button>
@@ -395,11 +423,17 @@ export function CanvasBoard({
       <button
         type="button"
         className={`era-close-btn${eraUrgent ? ' is-urgent' : ''}`}
-        onClick={endEra}
-        disabled={fx.inputLocked}
+        onClick={onEndEra}
+        disabled={fx.inputLocked || eraEndLocked}
+        aria-describedby={eraEndLocked ? 'era-close-reason' : undefined}
       >
         시대 마감
       </button>
+      {eraEndLocked && (
+        <p className="era-close-reason" id="era-close-reason">
+          {eraEndReason}
+        </p>
+      )}
 
       <AnimatePresence>
         {instances.map((inst) => {
@@ -424,6 +458,7 @@ export function CanvasBoard({
               locked={fx.inputLocked || mobileComboPreparing}
               revealDiscovery={!!inst.revealDiscovery}
               spawnPop={!!inst.spawnPop}
+              ruleStampKeys={inst.ruleStampKeys}
               rerecord={inst.rerecord}
               tilt={cardTiltDeg(inst.conceptId, collapsedCount)}
               reservedSlot={mobileComboSlots.findIndex(

@@ -280,6 +280,7 @@
   }
 
   .mobile-altar__targets ul {
+    flex: 1 1 auto;
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -431,9 +432,19 @@
   }
 
   .mobile-pillar__rule {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    white-space: normal;
+  }
+
+  .mobile-pillar__rule strong {
+    color: var(--seal-light);
+    font-size: 8px;
+  }
+
+  .mobile-pillar__rule span {
+    display: block;
   }
 
   .mobile-pillar__detail {
@@ -442,6 +453,86 @@
 
   .mobile-pillar__detail span {
     color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 7px;
+  }
+
+  .mobile-altar__pillar-detail-panel {
+    flex: 0 0 auto;
+    max-height: 158px;
+    overflow-y: auto;
+    margin: 3px 1px 1px;
+    padding: 8px 9px;
+    border: 1px solid rgba(190, 145, 76, 0.42);
+    border-left: 3px solid var(--seal-bright);
+    border-radius: 5px;
+    background:
+      linear-gradient(135deg, rgba(176, 52, 38, 0.11), transparent 46%),
+      rgba(18, 22, 19, 0.88);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.16);
+  }
+
+  .mobile-altar__pillar-detail-panel header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .mobile-altar__pillar-detail-panel header strong {
+    color: var(--mobile-gold-light);
+    font-family: var(--font-latin);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+  }
+
+  .mobile-altar__pillar-detail-panel header span,
+  .mobile-altar__pillar-detail-panel header em {
+    color: rgba(237, 228, 205, 0.62);
+    font-family: var(--font-decree);
+    font-size: 8px;
+    font-style: normal;
+  }
+
+  .mobile-altar__pillar-question {
+    margin: 3px 0 6px;
+    color: rgba(237, 228, 205, 0.7);
+    font-family: var(--font-decree);
+    font-size: 9px;
+  }
+
+  .mobile-altar__future-rule {
+    padding-top: 6px;
+    border-top: 1px solid rgba(212, 183, 121, 0.2);
+  }
+
+  .mobile-altar__future-rule > span {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-altar__future-rule > strong {
+    display: block;
+    color: var(--mobile-paper);
+    font-family: var(--font-decree);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.36;
+  }
+
+  .mobile-altar__pillar-forecast {
+    margin: 6px 0 2px;
+    color: rgba(237, 228, 205, 0.7);
+    font-family: var(--font-data);
+    font-size: 8px;
+    line-height: 1.35;
+  }
+
+  .mobile-altar__pillar-detail-panel > small {
+    color: rgba(237, 228, 205, 0.42);
     font-family: var(--font-data);
     font-size: 7px;
   }
