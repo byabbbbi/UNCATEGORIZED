@@ -1,14 +1,109 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
+import type { Concept } from '../types'
 import './ConceptDrawer.css'
 
 const RING_R = 26
 const RING_C = 2 * Math.PI * RING_R
 
+function DrawerChip({
+  concept,
+  locked,
+}: {
+  concept: Concept
+  locked: boolean
+}) {
+  const setHoverConcept = useGameStore((s) => s.setHoverConcept)
+  const spawnFromDrawer = useGameStore((s) => s.spawnFromDrawer)
+  const pointer = useRef<{
+    id: number
+    startX: number
+    startY: number
+    dragging: boolean
+  } | null>(null)
+  const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  )
+
+  const clearDrag = () => {
+    pointer.current = null
+    setDragPoint(null)
+  }
+
+  return (
+    <button
+      type="button"
+      className={`drawer__chip${concept.deleted ? ' is-deleted' : ''}`}
+      disabled={concept.deleted || locked}
+      title={
+        concept.deleted
+          ? '삭제된 개념 — 조합 불가'
+          : `${concept.name} — 캔버스로 드래그`
+      }
+      onPointerDown={(event) => {
+        if (concept.deleted || locked) return
+        setHoverConcept(concept.id)
+        pointer.current = {
+          id: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          dragging: false,
+        }
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }}
+      onPointerMove={(event) => {
+        const active = pointer.current
+        if (!active || active.id !== event.pointerId) return
+        if (
+          !active.dragging &&
+          Math.hypot(event.clientX - active.startX, event.clientY - active.startY) < 8
+        ) {
+          return
+        }
+        active.dragging = true
+        setDragPoint({ x: event.clientX, y: event.clientY })
+      }}
+      onPointerUp={(event) => {
+        const active = pointer.current
+        if (!active || active.id !== event.pointerId) return
+        if (active.dragging) {
+          const board = document
+            .elementFromPoint(event.clientX, event.clientY)
+            ?.closest<HTMLElement>('.canvas-board')
+          if (board) {
+            const rect = board.getBoundingClientRect()
+            spawnFromDrawer(
+              concept.id,
+              event.clientX - rect.left,
+              event.clientY - rect.top,
+            )
+          }
+        }
+        clearDrag()
+      }}
+      onPointerCancel={clearDrag}
+      onMouseEnter={() => setHoverConcept(concept.id)}
+      onFocus={() => setHoverConcept(concept.id)}
+    >
+      <span aria-hidden>{concept.emoji}</span>
+      <span className="drawer__chip-name">{concept.name}</span>
+      {dragPoint && (
+        <span
+          className="drawer__drag-ghost"
+          style={{ left: dragPoint.x + 12, top: dragPoint.y - 76 }}
+          aria-hidden
+        >
+          <b>{concept.emoji}</b>
+          <em>{concept.name}</em>
+        </span>
+      )}
+    </button>
+  )
+}
+
 export function ConceptDrawer() {
   const concepts = useGameStore((s) => s.concepts)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
-  const setHoverConcept = useGameStore((s) => s.setHoverConcept)
   const shards = useGameStore((s) => s.shards)
   const openVault = useGameStore((s) => s.openVault)
   const openCodex = useGameStore((s) => s.openCodex)
@@ -49,32 +144,8 @@ export function ConceptDrawer() {
     <div className={`drawer${drawerHighlight ? ' is-drop-target' : ''}`}>
       <div className="drawer__rail-wrap">
         <div ref={railRef} className="drawer__rail">
-          {ordered.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`drawer__chip${c.deleted ? ' is-deleted' : ''}`}
-              draggable={!c.deleted && !locked}
-              disabled={!!c.deleted || locked}
-              title={
-                c.deleted
-                  ? '삭제된 개념 — 조합 불가'
-                  : `${c.name} — 캔버스로 드래그`
-              }
-              onDragStart={(e) => {
-                if (c.deleted || locked) {
-                  e.preventDefault()
-                  return
-                }
-                e.dataTransfer.setData('text/concept-id', c.id)
-                e.dataTransfer.effectAllowed = 'copy'
-              }}
-              onMouseEnter={() => setHoverConcept(c.id)}
-              onFocus={() => setHoverConcept(c.id)}
-            >
-              <span aria-hidden>{c.emoji}</span>
-              <span className="drawer__chip-name">{c.name}</span>
-            </button>
+          {ordered.map((concept) => (
+            <DrawerChip key={concept.id} concept={concept} locked={locked} />
           ))}
         </div>
       </div>
@@ -83,7 +154,7 @@ export function ConceptDrawer() {
         type="button"
         className="drawer__codex"
         onClick={openCodex}
-        title="전체 대장 보기 (Tab)"
+        title="전체 대장 보기"
       >
         전체 {concepts.length}
       </button>

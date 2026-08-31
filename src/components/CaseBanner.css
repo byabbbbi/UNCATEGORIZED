@@ -35,8 +35,18 @@
   font-weight: 700;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 767px) {
   .case-banner {
-    overflow-x: auto;
+    overflow: hidden;
+  }
+
+  .case-banner > span:not(.case-banner__progress) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .case-banner__progress {
+    flex: 0 0 auto;
   }
 }

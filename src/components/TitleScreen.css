@@ -69,3 +69,18 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+@media (max-width: 767px) {
+  .title-screen {
+    min-height: 100dvh;
+    padding:
+      calc(24px + env(safe-area-inset-top))
+      calc(18px + env(safe-area-inset-right))
+      calc(24px + env(safe-area-inset-bottom))
+      calc(18px + env(safe-area-inset-left));
+  }
+
+  .title-screen__btn {
+    min-height: 48px;
+  }
+}

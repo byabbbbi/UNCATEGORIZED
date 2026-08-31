@@ -49,6 +49,7 @@
   padding: 4px 2px 8px;
   border: 1px solid var(--rule);
   background: var(--form-dark);
+  touch-action: pan-x;
 }
 
 .drawer__codex {
@@ -85,6 +86,10 @@
   min-width: 52px;
   font-family: var(--font-body);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .drawer__chip:active {
@@ -108,6 +113,43 @@
   color: var(--ink-dim);
   max-width: 56px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__drag-ghost {
+  position: fixed;
+  z-index: 180;
+  width: 76px;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--seal);
+  border-radius: 3px;
+  background: var(--form-light);
+  box-shadow: 0 5px 16px rgba(14, 18, 16, 0.26);
+  color: var(--ink);
+  pointer-events: none;
+  rotate: 2deg;
+}
+
+.drawer__drag-ghost b {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.drawer__drag-ghost em {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-style: normal;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -227,5 +269,46 @@
 
   .drawer__vault-ring-fill {
     transition: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .drawer {
+    height: 78px;
+    padding-top: 0;
+    gap: 6px;
+  }
+
+  .drawer__rail {
+    gap: 7px;
+    padding: 3px 2px 6px;
+    scrollbar-width: none;
+  }
+
+  .drawer__rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .drawer__chip {
+    min-width: 64px;
+    min-height: 66px;
+    padding: 5px 7px;
+  }
+
+  .drawer__chip span:first-child {
+    font-size: 23px;
+  }
+
+  .drawer__chip-name {
+    max-width: 58px;
+  }
+
+  .drawer__codex {
+    min-width: 62px;
+    padding: 4px 6px;
+  }
+
+  .drawer__vault {
+    width: 56px;
   }
 }

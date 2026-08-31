@@ -165,10 +165,12 @@ export interface GameStore {
   tidyCanvas: () => void
   openCodex: () => void
   closeCodex: () => void
+  proclaimInstance: (instanceId: string) => void
   handleDrop: (
     instanceId: string,
     center: { x: number; y: number },
     altar: { x: number; y: number },
+    allowProclamation?: boolean,
   ) => void
   endEra: () => void
   openVault: () => void
@@ -181,11 +183,14 @@ export interface GameStore {
 }
 
 function seedInstances(concepts: Concept[]): CanvasInstance[] {
+  const mobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
   return concepts.slice(0, 4).map((c, i) => ({
     instanceId: uid('i'),
     conceptId: c.id,
-    x: 56 + i * 114,
-    y: 72 + (i % 2) * 40,
+    x: mobile ? 18 + (i % 3) * (CARD_W + 8) : 56 + i * 114,
+    y: mobile ? 36 + Math.floor(i / 3) * (CARD_H + 8) : 72 + (i % 2) * 40,
   }))
 }
 
@@ -222,6 +227,7 @@ function createPlayState(opts?: {
   | 'tidyCanvas'
   | 'openCodex'
   | 'closeCodex'
+  | 'proclaimInstance'
   | 'handleDrop'
   | 'endEra'
   | 'openVault'
@@ -1207,14 +1213,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tidyCanvas: () => {
     const s = get()
     if (s.fx.inputLocked || s.screen !== 'play') return
-    const GAP = 110
+    const mobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches
+    const gapX = mobile ? CARD_W + 8 : 110
+    const gapY = mobile ? CARD_H + 8 : 110
+    const maxCols = mobile
+      ? Math.max(2, Math.floor((window.innerWidth - 12) / gapX))
+      : 6
     let col = 0
     let row = 0
-    const maxCols = 6
     const next = s.instances.map((inst) => {
       if (inst.processing) return inst
-      const x = 16 + col * GAP
-      const y = 28 + row * GAP
+      const x = (mobile ? 10 : 16) + col * gapX
+      const y = (mobile ? 24 : 28) + row * gapY
       col += 1
       if (col >= maxCols) {
         col = 0
@@ -1232,22 +1244,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   closeCodex: () => set({ codexOpen: false }),
 
-  handleDrop: (instanceId, center, altar) => {
+  proclaimInstance: (instanceId) => {
+    const tutorialStep = get().tutorialStep
+    declareOnAltar(instanceId)
+    if (tutorialStep === 3) markTutorial('done')
+  },
+
+  handleDrop: (instanceId, center, altar, allowProclamation = true) => {
     const state = get()
     if (state.fx.inputLocked || state.screen !== 'play') return
     const dragged = state.instances.find((i) => i.instanceId === instanceId)
     if (!dragged || dragged.processing) return
 
-    if (dist(center.x, center.y, altar.x, altar.y) < ALTAR_R) {
-      declareOnAltar(instanceId)
-      if (state.tutorialStep === 3) {
-        try {
-          localStorage.setItem('tutorialDone', '1')
-        } catch {
-          /* ignore */
-        }
-        set({ tutorialStep: 'done' })
-      }
+    const mobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches
+    const altarDropRadius = ALTAR_R
+    const combineRadius = COMBINE_RADIUS * (mobile ? 1.5 : 1)
+
+    if (
+      allowProclamation &&
+      dist(center.x, center.y, altar.x, altar.y) < altarDropRadius
+    ) {
+      get().proclaimInstance(instanceId)
       return
     }
 
@@ -1257,7 +1276,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const mid = centerOf(c)
         return { c, d: dist(center.x, center.y, mid.x, mid.y) }
       })
-      .filter((x) => x.d < COMBINE_RADIUS)
+      .filter((x) => x.d < combineRadius)
       .sort((a, b) => a.d - b.d)[0]
 
     if (target) {
