@@ -125,6 +125,10 @@
   -webkit-touch-callout: none;
 }
 
+.workshop-scene {
+  display: none;
+}
+
 .canvas-card.is-rerecord {
   overflow: visible;
 }
@@ -263,8 +267,83 @@
 
 @media (max-width: 767px) {
   .canvas-board {
+    isolation: isolate;
     overscroll-behavior: none;
     touch-action: none;
+    border: 0;
+    border-radius: 10px;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(245, 232, 199, 0.2), transparent 34%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 38%),
+      #6f786f;
+    box-shadow:
+      inset 0 0 0 1px rgba(232, 229, 210, 0.18),
+      inset 0 0 36px rgba(17, 24, 19, 0.28),
+      0 4px 0 rgba(35, 38, 33, 0.36);
+  }
+
+  .canvas-board::before,
+  .canvas-board::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .canvas-board::before {
+    inset: 9px;
+    border-radius: 7px;
+    box-shadow: inset 0 0 0 1px rgba(226, 218, 193, 0.09);
+  }
+
+  .canvas-board::after {
+    right: 10px;
+    bottom: 8px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(218, 181, 105, 0.18);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 4px rgba(218, 181, 105, 0.04);
+  }
+
+  .workshop-scene {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    left: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: rgba(236, 226, 201, 0.34);
+    pointer-events: none;
+  }
+
+  .workshop-scene > span {
+    width: 25px;
+    height: 25px;
+    display: grid;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+  }
+
+  .workshop-scene .game-glyph {
+    width: 16px;
+    height: 16px;
+  }
+
+  .workshop-scene i {
+    font-family: var(--font-latin);
+    font-size: 8px;
+    font-style: normal;
+    letter-spacing: 0.16em;
+  }
+
+  .canvas-rules {
+    opacity: 0.56;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(225, 222, 200, 0.055) 32px),
+      repeating-linear-gradient(91deg, transparent, transparent 46px, rgba(28, 36, 30, 0.05) 47px);
   }
 
   .canvas-board__hint {
@@ -275,6 +354,50 @@
   .era-close-btn,
   .altar {
     display: none;
+  }
+
+  .canvas-card {
+    filter: drop-shadow(0 7px 5px rgba(25, 25, 20, 0.22));
+  }
+
+  .canvas-board.is-mobile-compact .canvas-card:not(.card-back-loader) .index-card {
+    transform: scale(1.07);
+  }
+
+  .canvas-card.is-touch-pressed {
+    filter: drop-shadow(0 10px 7px rgba(25, 25, 20, 0.28));
+  }
+
+  .canvas-card.is-touch-pressed .index-card {
+    box-shadow:
+      0 0 0 3px rgba(214, 180, 106, 0.38),
+      0 7px 13px rgba(31, 27, 20, 0.26);
+  }
+
+  .card-back-loader {
+    border: 0;
+    border-radius: 8px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 36%),
+      repeating-linear-gradient(45deg, #3f473f, #3f473f 6px, #555e55 6px, #555e55 12px);
+    box-shadow:
+      inset 0 0 0 2px rgba(215, 177, 101, 0.32),
+      0 7px 14px rgba(0, 0, 0, 0.28);
+  }
+
+  .card-back-loader__wax {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border: 1px solid var(--mobile-gold-light);
+    border-radius: 50%;
+    color: var(--mobile-gold-light);
+  }
+
+  .result-burst__ring {
+    border-color: var(--mobile-gold-light);
+    box-shadow: 0 0 18px rgba(220, 180, 99, 0.46), inset 0 0 14px rgba(220, 180, 99, 0.32);
   }
 }
 

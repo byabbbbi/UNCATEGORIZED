@@ -6,6 +6,7 @@ import {
   useMotionValue,
 } from 'motion/react'
 import { IndexCard } from './IndexCard'
+import { GameGlyph } from './GameGlyph'
 import { TutorialHint } from './TutorialHint'
 import { useGameStore } from '../store/gameStore'
 import { hashStr } from '../generation'
@@ -44,7 +45,7 @@ function ProcessingCard({ x, y }: { x: number; y: number }) {
       }}
     >
       <span className="card-back-loader__wax" aria-hidden>
-        ❐
+        <GameGlyph kind="combine" />
       </span>
     </motion.div>
   )
@@ -345,6 +346,10 @@ export function CanvasBoard({
       className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''}${isCompactMobileBoard ? ' is-mobile-compact' : ' is-mobile-expanded'}`}
       style={{ ['--decay' as string]: collapsedCount }}
     >
+      <div className="workshop-scene" aria-hidden>
+        <span><GameGlyph kind="workshop" /></span>
+        <i>OFFICINA RERUM</i>
+      </div>
       <div className="canvas-rules" aria-hidden />
       <div className="canvas-board__hint">카드를 끌어 겹치면 조합 · 제단에 놓으면 선포</div>
       <TutorialHint />

@@ -996,9 +996,27 @@ function resolveSlot(
     hoverConceptId: concept.id,
     mobileComboToast: {
       id: uid('combo-toast'),
-      first: { emoji: a.emoji, name: a.name },
-      second: { emoji: b.emoji, name: b.name },
-      result: { emoji: concept.emoji, name: concept.name },
+      first: {
+        id: a.id,
+        emoji: a.emoji,
+        name: a.name,
+        pillar: a.pillar,
+        deleted: a.deleted,
+      },
+      second: {
+        id: b.id,
+        emoji: b.emoji,
+        name: b.name,
+        pillar: b.pillar,
+        deleted: b.deleted,
+      },
+      result: {
+        id: concept.id,
+        emoji: concept.emoji,
+        name: concept.name,
+        pillar: concept.pillar,
+        deleted: concept.deleted,
+      },
       isDiscovery,
     },
     message: isRerecord
@@ -1354,6 +1372,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ]
       next[existingIndex] = null
       set({ mobileComboSlots: next })
+      sfx.drop()
+      vibrateMobile(6)
       return
     }
 
@@ -1370,6 +1390,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       source: 'canvas',
     }
     set({ mobileComboSlots: next })
+    sfx.pick()
+    vibrateMobile(8)
     if (next[0] && next[1]) scheduleMobileCombination()
   },
 
@@ -1390,6 +1412,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       source: 'drawer',
     }
     set({ mobileComboSlots: next })
+    sfx.pick()
+    vibrateMobile(8)
     if (next[0] && next[1]) scheduleMobileCombination()
   },
 
@@ -1402,6 +1426,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     ]
     next[index] = null
     set({ mobileComboSlots: next })
+    sfx.drop()
+    vibrateMobile(6)
   },
 
   clearMobileComboSlots: () =>

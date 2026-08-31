@@ -1,0 +1,29 @@
+.game-glyph {
+  width: 1.45em;
+  height: 1.45em;
+  flex: none;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.game-glyph text {
+  fill: currentColor;
+  stroke: none;
+  font-family: var(--font-latin);
+  font-size: 5px;
+  font-weight: 700;
+}
+
+.game-glyph__fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.game-glyph__fill-soft {
+  fill: currentColor;
+  fill-opacity: 0.28;
+}

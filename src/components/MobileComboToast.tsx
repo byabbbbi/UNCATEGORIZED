@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
+import { GameGlyph } from './GameGlyph'
 import './MobileComboToast.css'
 
 export function MobileComboToast() {
@@ -28,9 +29,21 @@ export function MobileComboToast() {
           aria-live="polite"
         >
           {toast.isDiscovery && <b>최초 발견</b>}
-          <span>
-            {toast.first.emoji} {toast.first.name} + {toast.second.emoji}{' '}
-            {toast.second.name} → {toast.result.emoji} {toast.result.name}
+          <span className="mobile-combo-toast__formula">
+            <span>
+              <GameGlyph kind="concept" concept={toast.first} />
+              <em>{toast.first.name}</em>
+            </span>
+            <i>＋</i>
+            <span>
+              <GameGlyph kind="concept" concept={toast.second} />
+              <em>{toast.second.name}</em>
+            </span>
+            <i>→</i>
+            <span className="is-result">
+              <GameGlyph kind="concept" concept={toast.result} />
+              <em>{toast.result.name}</em>
+            </span>
           </span>
         </motion.p>
       )}

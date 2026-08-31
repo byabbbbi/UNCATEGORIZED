@@ -19,6 +19,7 @@ import { EndingScreen } from './components/EndingScreen'
 import { ShardFlights } from './components/ShardFlights'
 import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
+import { GameGlyph } from './components/GameGlyph'
 import { useGameStore } from './store/gameStore'
 import { unlockAudio } from './sfx'
 import {
@@ -29,6 +30,7 @@ import {
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 import './styles/mobileFeedback.css'
+import './styles/mobileGame.css'
 
 type MobileSheet = 'rules' | 'chronicle'
 type MobileView = 'workshop' | 'altar'
@@ -275,7 +277,7 @@ export default function App() {
 
   return (
     <div
-      className={`app${fx.unclassifiedFx ? ' is-voiding' : ''}`}
+      className={`app mobile-era-${era}${coherence <= 30 ? ' is-coherence-critical' : ''}${collapsed.length > 0 ? ' has-collapsed-pillars' : ''}${fx.sealFlash ? ' is-mobile-impacting' : ''}${fx.unclassifiedFx ? ' is-voiding' : ''}`}
       onPointerDown={() => unlockAudio()}
     >
       {fx.whiteFlash && <div className="flash-white" />}
@@ -307,7 +309,10 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__stats">
             <label className="topbar__discover">
-              <span data-mobile-icon="🔍">발견</span>
+              <span>
+                <span className="topbar__desktop-label">발견</span>
+                <GameGlyph kind="discovery" className="topbar__mobile-glyph" />
+              </span>
               <motion.strong
                 key={fx.discoverPop}
                 className={`topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
@@ -319,25 +324,34 @@ export default function App() {
               </motion.strong>
             </label>
             <label className="topbar__coherence">
-              <span data-mobile-icon="정합성">정합성</span>
+              <span>정합성</span>
               <strong className={coherence <= 30 ? 'is-critical' : ''}>
                 <AnimatedNumber value={coherence} digits={1} />
               </strong>
             </label>
             <label>
-              <span data-mobile-icon="⏳">시대</span>
+              <span>
+                <span className="topbar__desktop-label">시대</span>
+                <GameGlyph kind="era" className="topbar__mobile-glyph" />
+              </span>
               <strong>
                 {era}/{MAX_ERA}
               </strong>
             </label>
             <label>
-              <span data-mobile-icon="⚡">선포 잔여</span>
+              <span>
+                <span className="topbar__desktop-label">선포 잔여</span>
+                <GameGlyph kind="proclamation" className="topbar__mobile-glyph" />
+              </span>
               <strong>
                 {remainingDeclares}
               </strong>
             </label>
             <label>
-              <span data-mobile-icon="◈">파편</span>
+              <span>
+                <span className="topbar__desktop-label">파편</span>
+                <GameGlyph kind="shard" className="topbar__mobile-glyph" />
+              </span>
               <motion.strong
                 key={fx.shardPop}
                 className="topbar__shard-num"
@@ -362,7 +376,7 @@ export default function App() {
               aria-label="게임 메뉴"
               aria-expanded={mobileMenuOpen}
             >
-              ⋯
+              <GameGlyph kind="menu" />
             </button>
             <button
               type="button"
@@ -398,6 +412,13 @@ export default function App() {
             />
             <MobileComboTray />
             <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
+            <div className="mobile-workshop-mark" aria-hidden>
+              <span><GameGlyph kind="workshop" /></span>
+              <div>
+                <strong>제{era}시대 기록 공방</strong>
+                <i>OFFICINA RERUM</i>
+              </div>
+            </div>
             <MobileComboToast />
             <StatStrip />
           </div>
@@ -410,7 +431,8 @@ export default function App() {
               aria-current={mobileView === 'workshop' ? 'page' : undefined}
               onClick={returnToWorkshop}
             >
-              공방
+              <GameGlyph kind="workshop" />
+              <span className="mobile-tabbar__label">공방</span>
             </button>
             <button
               type="button"
@@ -418,7 +440,8 @@ export default function App() {
               aria-current={mobileView === 'altar' ? 'page' : undefined}
               onClick={openMobileAltar}
             >
-              <span>제단</span>
+              <GameGlyph kind="altar" />
+              <span className="mobile-tabbar__label">제단</span>
               {remainingDeclares > 0 ? (
                 <b aria-label={`선포 가능 ${remainingDeclares}회`}>{remainingDeclares}</b>
               ) : (
@@ -633,7 +656,10 @@ export default function App() {
 
       <VaultModal />
       <CodexModal onMobileClose={closeMobileCodex} />
-      {gameMode !== 'demo' && <MobileOnboarding step={mobileOnboarding} />}
+      {gameMode !== 'demo' &&
+        !(mobileView === 'altar' && mobileOnboarding === 'combo') && (
+          <MobileOnboarding step={mobileOnboarding} />
+        )}
       {screen === 'ending' && <EndingScreen />}
       <DebugBadge />
     </div>

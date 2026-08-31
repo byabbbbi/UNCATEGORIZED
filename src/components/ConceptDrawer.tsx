@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import type { Concept } from '../types'
+import { GameGlyph } from './GameGlyph'
 import './ConceptDrawer.css'
 
 const RING_R = 26
@@ -112,7 +113,8 @@ function DrawerChip({
       onMouseEnter={() => setHoverConcept(concept.id)}
       onFocus={() => setHoverConcept(concept.id)}
     >
-      <span aria-hidden>{concept.emoji}</span>
+      <span className="drawer__platform-emoji" aria-hidden>{concept.emoji}</span>
+      <GameGlyph kind="concept" concept={concept} className="drawer__game-glyph" />
       <span className="drawer__chip-name">{concept.name}</span>
       {dragPoint && (
         <span
@@ -120,7 +122,8 @@ function DrawerChip({
           style={{ left: dragPoint.x + 12, top: dragPoint.y - 76 }}
           aria-hidden
         >
-          <b>{concept.emoji}</b>
+          <b className="drawer__platform-emoji">{concept.emoji}</b>
+          <GameGlyph kind="concept" concept={concept} className="drawer__game-glyph" />
           <em>{concept.name}</em>
         </span>
       )}
@@ -196,7 +199,8 @@ export function ConceptDrawer({
         }}
         title="전체 대장 보기"
       >
-        전체 {concepts.length}
+        <GameGlyph kind="codex" />
+        <span>전체 {concepts.length}</span>
       </button>
 
       <button
@@ -225,9 +229,7 @@ export function ConceptDrawer({
             transform="rotate(-90 32 32)"
           />
         </svg>
-        <span className="drawer__vault-back" aria-hidden>
-          ❐
-        </span>
+        <GameGlyph kind="vault" className="drawer__vault-back" />
         <span className="drawer__vault-wax" aria-hidden />
         <span className="drawer__vault-count" aria-hidden>
           {filled}/10

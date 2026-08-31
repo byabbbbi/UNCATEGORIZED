@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
+import { GameGlyph } from './GameGlyph'
 import './MobileComboTray.css'
 
 export function MobileComboTray() {
@@ -45,9 +46,11 @@ export function MobileComboTray() {
                   <span className="mobile-combo-tray__order" aria-hidden>
                     {order}
                   </span>
-                  <span className="mobile-combo-tray__emoji" aria-hidden>
-                    {concept.emoji}
-                  </span>
+                  <GameGlyph
+                    kind="concept"
+                    concept={concept}
+                    className="mobile-combo-tray__glyph"
+                  />
                   <strong>{concept.name}</strong>
                 </>
               ) : (
@@ -55,17 +58,13 @@ export function MobileComboTray() {
                   <span className="mobile-combo-tray__order" aria-hidden>
                     {order}
                   </span>
-                  <span className="mobile-combo-tray__empty" aria-hidden>
-                    ?
-                  </span>
+                  <GameGlyph kind="combine" className="mobile-combo-tray__empty" />
                 </>
               )}
             </motion.button>
           )
         })}
-        <span className="mobile-combo-tray__plus" aria-hidden>
-          +
-        </span>
+        <GameGlyph kind="combine" className="mobile-combo-tray__plus" />
       </div>
       <p aria-live="polite">{hint}</p>
     </section>

@@ -35,6 +35,10 @@
   font-weight: 700;
 }
 
+.case-banner__sigil {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .case-banner {
     overflow: hidden;
@@ -48,5 +52,42 @@
 
   .case-banner__progress {
     flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .case-banner {
+    min-height: 31px;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    border-radius: 5px 9px 9px 5px;
+    background:
+      linear-gradient(150deg, rgba(255, 255, 255, 0.3), transparent 42%),
+      var(--mobile-paper-dark);
+    box-shadow:
+      inset 3px 0 0 var(--mobile-gold),
+      inset 0 0 0 1px rgba(100, 77, 45, 0.2),
+      0 2px 0 rgba(63, 50, 35, 0.26);
+    color: var(--mobile-ink);
+    font-size: 10px;
+  }
+
+  .case-banner__sigil {
+    display: block;
+    width: 17px;
+    height: 17px;
+    color: var(--mobile-gold);
+  }
+
+  .case-banner__progress {
+    color: color-mix(in srgb, var(--mobile-ink) 58%, transparent);
+  }
+
+  .case-banner.is-complete {
+    box-shadow:
+      inset 3px 0 0 var(--seal-bright),
+      inset 0 0 0 1px rgba(100, 77, 45, 0.2),
+      0 2px 0 rgba(63, 50, 35, 0.26);
   }
 }

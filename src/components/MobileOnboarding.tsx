@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { GameGlyph } from './GameGlyph'
 import './MobileOnboarding.css'
 
 export type MobileOnboardingStep = 'combo' | 'altar' | 'proclaim' | 'done'
@@ -24,13 +25,16 @@ export function MobileOnboarding({ step }: { step: MobileOnboardingStep }) {
                 animate={{ x: [-72, -26, -26], y: [24, 0, 0], opacity: [0, 1, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 1.1 }}
               >
-                🌱
+                <GameGlyph
+                  kind="concept"
+                  concept={{ id: 'spark', pillar: 'quality', deleted: false }}
+                />
               </motion.span>
-              <p>카드를 탭해서 조합</p>
+              <p><strong>기록관의 속삭임</strong>카드를 탭해서 조합</p>
             </>
           )}
-          {step === 'altar' && <p>만든 것을 제단에서 선포</p>}
-          {step === 'proclaim' && <p>카드 → 기둥 → 꾹 눌러 선포</p>}
+          {step === 'altar' && <p><strong>기록관의 속삭임</strong>만든 것을 제단에서 선포</p>}
+          {step === 'proclaim' && <p><strong>기록관의 속삭임</strong>카드 → 기둥 → 인장을 꾹 누르기</p>}
         </motion.div>
       )}
     </AnimatePresence>

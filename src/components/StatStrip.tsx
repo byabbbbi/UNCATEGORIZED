@@ -2,6 +2,7 @@ import { calcD, calcCoherenceLoss } from '../game/formulas'
 import { PILLAR_KO, PILLAR_LATIN } from '../data/initial'
 import { useGameStore } from '../store/gameStore'
 import { sealOf } from '../types'
+import { GameGlyph } from './GameGlyph'
 import './StatStrip.css'
 
 export function StatStrip() {
@@ -47,7 +48,9 @@ export function StatStrip() {
     <div className="stat-strip">
       <div className="stat-strip__summary">
         <strong>
-          {concept.emoji} {concept.name}
+          <span className="stat-strip__platform-emoji" aria-hidden>{concept.emoji}</span>
+          <GameGlyph kind="concept" concept={concept} className="stat-strip__game-glyph" />
+          {concept.name}
         </strong>
         <span>
           {concept.deleted ? '검열됨 · ' : ''}혼돈 {concept.chaos} · 개연{' '}

@@ -92,9 +92,9 @@ export interface MobileComboSlot {
 
 export interface MobileComboToast {
   id: string
-  first: Pick<Concept, 'emoji' | 'name'>
-  second: Pick<Concept, 'emoji' | 'name'>
-  result: Pick<Concept, 'emoji' | 'name'>
+  first: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
+  second: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
+  result: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
   isDiscovery: boolean
 }
 
