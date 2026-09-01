@@ -5,6 +5,7 @@ import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
 import { MobileComboToast } from './components/MobileComboToast'
 import { MobileArchive } from './components/MobileArchive'
+import { MobileEraMap } from './components/MobileEraMap'
 import {
   MobileOnboarding,
   type MobileOnboardingStep,
@@ -34,7 +35,7 @@ import './App.css'
 import './styles/mobileFeedback.css'
 import './styles/mobileGame.css'
 
-type MobileSheet = 'rules' | 'chronicle'
+type MobileSheet = 'eras' | 'rules' | 'chronicle'
 type MobileView = 'workshop' | 'altar' | 'archive'
 const MOBILE_ONBOARDING_KEY = 'uncat-mobile-onboarding-v1'
 
@@ -552,11 +553,11 @@ export default function App() {
               transition={{ type: 'spring', stiffness: 360, damping: 34 }}
               role="dialog"
               aria-modal="true"
-              aria-label={mobileSheet === 'rules' ? '생성 규칙' : '연대기'}
+              aria-label={mobileSheet === 'eras' ? '시대 흐름' : mobileSheet === 'rules' ? '생성 규칙' : '연대기'}
               onPointerDown={(event) => event.stopPropagation()}
             >
               <header className="mobile-sheet__head">
-                <h2>{mobileSheet === 'rules' ? '생성 규칙' : '연대기'}</h2>
+                <h2>{mobileSheet === 'eras' ? '시대 흐름' : mobileSheet === 'rules' ? '생성 규칙' : '연대기'}</h2>
                 <button
                   type="button"
                   onClick={closeMobileSheet}
@@ -565,7 +566,7 @@ export default function App() {
                   ✕
                 </button>
               </header>
-              <SidePanel view={mobileSheet} />
+              {mobileSheet === 'eras' ? <MobileEraMap /> : <SidePanel view={mobileSheet} />}
             </motion.section>
           </motion.div>
         )}
