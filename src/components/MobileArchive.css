@@ -168,6 +168,13 @@
     white-space: nowrap;
   }
 
+  .mobile-archive__entry-copy small {
+    color: rgba(240, 213, 149, 0.68);
+    font-family: var(--font-data);
+    font-size: 8px;
+    letter-spacing: 0.04em;
+  }
+
   .mobile-archive__entry > em {
     min-width: 25px;
     color: var(--mobile-gold-light);

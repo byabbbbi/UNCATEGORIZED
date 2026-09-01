@@ -1731,6 +1731,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           activeContaminants(s.contaminantCounts).sort().join(' · ') || null,
       },
       chronicle: vaultChronicle,
+      vaultGrade: grade,
+      vaultKey: `${grade}:${pick.name}`,
     }
 
     sfx.gacha()

@@ -20,6 +20,12 @@ export function MobileArchive({
 
   const latestRecord = chronicle.at(-1)?.text
   const nextRecovery = Math.max(0, 10 - shards)
+  const recoveredVaultKeys = new Set(
+    concepts.flatMap((concept) => (concept.vaultKey ? [concept.vaultKey] : [])),
+  )
+  const legacyVaultRecoveries = concepts.filter(
+    (concept) => !concept.vaultKey && concept.chronicle?.startsWith('보관소에서 '),
+  ).length
 
   return (
     <section className="mobile-archive-screen" aria-labelledby="mobile-archive-title">
@@ -99,6 +105,10 @@ export function MobileArchive({
                 ? '회수할 개념이 준비되었습니다.'
                 : `회수까지 파편 ${nextRecovery}개가 더 필요합니다.`}
             </span>
+            <small>
+              회수 도감 {recoveredVaultKeys.size}/40
+              {legacyVaultRecoveries > 0 ? ` · 이전 회수 ${legacyVaultRecoveries}건` : ''}
+            </small>
             <i aria-label={`파편 ${Math.min(shards, 10)} / 10`}>
               <b style={{ width: `${Math.min(100, shards * 10)}%` }} />
             </i>
