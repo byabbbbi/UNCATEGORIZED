@@ -187,14 +187,19 @@ function saveDestination(state: SaveableState): {
 
 export function scheduleSave(state: SaveableState) {
   if (typeof localStorage === 'undefined') return
-  if (state.screen !== 'play' || state.fx.inputLocked) return
+  if (state.screen !== 'play') return
 
   const destination = saveDestination(state)
   if (!destination) return
   cancelScheduledSave(destination.key)
   const timer = setTimeout(() => {
-    localStorage.setItem(destination.key, JSON.stringify(destination.payload))
-    saveTimers.delete(destination.key)
+    try {
+      localStorage.setItem(destination.key, JSON.stringify(destination.payload))
+    } catch {
+      /* 저장 실패가 플레이를 중단시키지 않게 한다. */
+    } finally {
+      saveTimers.delete(destination.key)
+    }
   }, 500)
   saveTimers.set(destination.key, timer)
 }
@@ -205,5 +210,9 @@ export function flushSave(state: SaveableState) {
   const destination = saveDestination(state)
   if (!destination) return
   cancelScheduledSave(destination.key)
-  localStorage.setItem(destination.key, JSON.stringify(destination.payload))
+  try {
+    localStorage.setItem(destination.key, JSON.stringify(destination.payload))
+  } catch {
+    /* 앱 전환 직전 저장 실패는 조용히 무시한다. */
+  }
 }

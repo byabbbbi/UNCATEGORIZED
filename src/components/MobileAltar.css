@@ -1,0 +1,698 @@
+.mobile-altar-screen {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-altar-screen {
+    position: relative;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow: hidden;
+    padding:
+      7px
+      calc(8px + env(safe-area-inset-right))
+      6px
+      calc(8px + env(safe-area-inset-left));
+    background:
+      radial-gradient(circle at 50% 23%, rgba(198, 154, 66, 0.14), transparent 26%),
+      linear-gradient(165deg, rgba(255, 255, 255, 0.035), transparent 42%),
+      var(--mobile-night);
+    color: var(--mobile-paper);
+  }
+
+  .mobile-altar-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.26;
+    background:
+      repeating-linear-gradient(92deg, transparent 0 13px, rgba(255, 255, 255, 0.018) 14px),
+      repeating-linear-gradient(0deg, transparent 0 23px, rgba(0, 0, 0, 0.055) 24px);
+  }
+
+  .mobile-altar__offering-head,
+  .mobile-altar__targets > header {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 3px;
+  }
+
+  .mobile-altar__offering-head > span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--mobile-gold-light);
+    font-family: var(--font-decree);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .mobile-altar__offering-head .game-glyph {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-altar__offering-head em {
+    color: color-mix(in srgb, var(--mobile-paper) 58%, transparent);
+    font-family: var(--font-data);
+    font-size: 9px;
+    font-style: normal;
+  }
+
+  .mobile-altar__card-rail {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 54px;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 2px 3px 5px;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+
+  .mobile-altar__card-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-altar__card-rail button {
+    flex: 0 0 78px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    appearance: none;
+    border: 0;
+    border-radius: 7px 7px 4px 4px;
+    background:
+      linear-gradient(150deg, rgba(255, 255, 255, 0.22), transparent 42%),
+      var(--mobile-paper-dark);
+    box-shadow:
+      inset 0 0 0 1px rgba(79, 63, 42, 0.34),
+      0 3px 0 rgba(8, 10, 9, 0.35);
+    color: var(--mobile-ink);
+    padding: 5px 7px;
+    text-align: left;
+  }
+
+  .mobile-altar__card-rail button.is-selected {
+    color: var(--seal-bright);
+    box-shadow:
+      inset 0 0 0 2px var(--seal-bright),
+      0 0 14px rgba(182, 55, 40, 0.35),
+      0 3px 0 rgba(8, 10, 9, 0.35);
+    translate: 0 -2px;
+  }
+
+  .mobile-altar__card-rail .game-glyph {
+    width: 24px;
+    height: 24px;
+    color: var(--mobile-gold);
+  }
+
+  .mobile-altar__card-rail strong {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--font-decree);
+    font-size: 10px;
+    line-height: 1.18;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-altar__card-rail > p {
+    align-self: center;
+    color: color-mix(in srgb, var(--mobile-paper) 65%, transparent);
+    font-family: var(--font-decree);
+    font-size: 11px;
+  }
+
+  .mobile-altar__stage {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 106px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at center, rgba(173, 130, 50, 0.16), transparent 56%),
+      rgba(8, 11, 10, 0.24);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobile-altar__orbit {
+    position: absolute;
+    border: 1px solid rgba(205, 169, 98, 0.25);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .mobile-altar__orbit::before,
+  .mobile-altar__orbit::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    background: var(--mobile-gold-light);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(214, 178, 105, 0.45);
+  }
+
+  .mobile-altar__orbit--outer {
+    width: 156px;
+    height: 70px;
+    rotate: -5deg;
+  }
+
+  .mobile-altar__orbit--outer::before {
+    width: 4px;
+    height: 4px;
+    translate: -79px -2px;
+  }
+
+  .mobile-altar__orbit--outer::after {
+    width: 3px;
+    height: 3px;
+    translate: 76px -1px;
+  }
+
+  .mobile-altar__orbit--inner {
+    width: 106px;
+    height: 54px;
+    rotate: 8deg;
+  }
+
+  .mobile-altar__offering {
+    position: relative;
+    z-index: 2;
+    width: 88px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 8px;
+    color: rgba(237, 228, 205, 0.52);
+    font-family: var(--font-decree);
+    font-size: 9px;
+  }
+
+  .mobile-altar__offering.is-ready {
+    background: var(--mobile-paper);
+    color: var(--mobile-ink);
+    box-shadow:
+      inset 0 0 0 1px rgba(121, 85, 44, 0.45),
+      0 6px 18px rgba(0, 0, 0, 0.34),
+      0 0 22px rgba(179, 138, 57, 0.16);
+  }
+
+  .mobile-altar__offering .game-glyph {
+    width: 36px;
+    height: 36px;
+    color: var(--mobile-gold);
+  }
+
+  .mobile-altar__offering strong {
+    max-width: 78px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-altar__impact {
+    position: absolute;
+    right: 9px;
+    bottom: 8px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: rgba(237, 228, 205, 0.62);
+    font-family: var(--font-data);
+    font-size: 8px;
+    text-align: right;
+  }
+
+  .mobile-altar__impact strong {
+    display: inline-block;
+    min-width: 34px;
+    color: var(--seal-light);
+    font-size: 11px;
+  }
+
+  .mobile-altar__targets {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-altar__targets h2 {
+    margin: 0;
+    color: var(--mobile-paper);
+    font-family: var(--font-decree);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+
+  .mobile-altar__targets header span {
+    color: rgba(237, 228, 205, 0.48);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-altar__targets ul {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(62px, auto);
+    align-content: start;
+    gap: 5px;
+    margin: 0;
+    padding: 3px 1px 2px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+  }
+
+  .mobile-pillar {
+    position: relative;
+    min-width: 0;
+  }
+
+  .mobile-pillar button {
+    position: relative;
+    width: 100%;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-rows: auto 16px;
+    align-items: center;
+    gap: 1px 5px;
+    overflow: hidden;
+    appearance: none;
+    border: 0;
+    border-radius: 5px 5px 9px 9px;
+    background:
+      linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 40%),
+      linear-gradient(#687068, #505851);
+    box-shadow:
+      inset 0 0 0 1px rgba(219, 225, 213, 0.13),
+      inset 0 -5px 9px rgba(0, 0, 0, 0.18),
+      0 3px 0 rgba(7, 9, 8, 0.45);
+    color: var(--mobile-paper);
+    padding: 5px 7px;
+    text-align: left;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .mobile-pillar.is-selected button {
+    background:
+      linear-gradient(120deg, rgba(255, 255, 255, 0.11), transparent 40%),
+      linear-gradient(#765249, #59352f);
+    box-shadow:
+      inset 0 0 0 2px var(--seal-light),
+      inset 0 -5px 9px rgba(0, 0, 0, 0.2),
+      0 0 18px rgba(177, 52, 39, 0.35),
+      0 3px 0 rgba(7, 9, 8, 0.45);
+    translate: 0 -1px;
+  }
+
+  .mobile-pillar button:disabled {
+    opacity: 0.52;
+    filter: grayscale(0.85) brightness(0.75);
+  }
+
+  .mobile-pillar__stone {
+    grid-row: 1 / span 2;
+    display: grid;
+    place-items: center;
+    color: var(--mobile-gold-light);
+  }
+
+  .mobile-pillar__stone .game-glyph {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mobile-pillar__identity {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 3px;
+  }
+
+  .mobile-pillar__identity strong {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--font-latin);
+    font-size: 10px;
+    letter-spacing: 0.055em;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-pillar__identity span {
+    flex: none;
+    color: rgba(237, 228, 205, 0.58);
+    font-family: var(--font-decree);
+    font-size: 8px;
+  }
+
+  .mobile-pillar__stability {
+    position: relative;
+    height: 11px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(5, 7, 6, 0.28);
+  }
+
+  .mobile-pillar__stability i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--seal-light), var(--mobile-gold-light));
+    opacity: 0.62;
+    transition: width 0.45s ease-out;
+  }
+
+  .mobile-pillar__stability em {
+    position: absolute;
+    inset: 0 3px 0 auto;
+    font-family: var(--font-data);
+    font-size: 8px;
+    font-style: normal;
+    line-height: 11px;
+  }
+
+  .mobile-pillar__preview {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    color: #ffd0bc;
+    font-family: var(--font-data);
+    font-size: 9px;
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  }
+
+  .mobile-pillar__rule,
+  .mobile-pillar__detail {
+    position: relative;
+    z-index: 2;
+    margin: -5px 3px 3px;
+    padding: 7px 6px 4px;
+    border-radius: 0 0 5px 5px;
+    background: #2b302c;
+    color: rgba(237, 228, 205, 0.58);
+    font-family: var(--font-decree);
+    font-size: 8px;
+    line-height: 1.25;
+  }
+
+  .mobile-pillar__rule {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    white-space: normal;
+  }
+
+  .mobile-pillar__rule strong {
+    color: var(--seal-light);
+    font-size: 8px;
+  }
+
+  .mobile-pillar__rule span {
+    display: block;
+  }
+
+  .mobile-pillar__detail {
+    color: var(--mobile-paper);
+  }
+
+  .mobile-pillar__detail span {
+    color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 7px;
+  }
+
+  .mobile-altar__pillar-detail-panel {
+    flex: 0 0 auto;
+    max-height: 158px;
+    overflow-y: auto;
+    margin: 3px 1px 1px;
+    padding: 8px 9px;
+    border: 1px solid rgba(190, 145, 76, 0.42);
+    border-left: 3px solid var(--seal-bright);
+    border-radius: 5px;
+    background:
+      linear-gradient(135deg, rgba(176, 52, 38, 0.11), transparent 46%),
+      rgba(18, 22, 19, 0.88);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.16);
+  }
+
+  .mobile-altar__pillar-detail-panel header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .mobile-altar__pillar-detail-panel header strong {
+    color: var(--mobile-gold-light);
+    font-family: var(--font-latin);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+  }
+
+  .mobile-altar__pillar-detail-panel header span,
+  .mobile-altar__pillar-detail-panel header em {
+    color: rgba(237, 228, 205, 0.62);
+    font-family: var(--font-decree);
+    font-size: 8px;
+    font-style: normal;
+  }
+
+  .mobile-altar__pillar-question {
+    margin: 3px 0 6px;
+    color: rgba(237, 228, 205, 0.7);
+    font-family: var(--font-decree);
+    font-size: 9px;
+  }
+
+  .mobile-altar__future-rule {
+    padding-top: 6px;
+    border-top: 1px solid rgba(212, 183, 121, 0.2);
+  }
+
+  .mobile-altar__future-rule > span {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-altar__future-rule > strong {
+    display: block;
+    color: var(--mobile-paper);
+    font-family: var(--font-decree);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.36;
+  }
+
+  .mobile-altar__pillar-forecast {
+    margin: 6px 0 2px;
+    color: rgba(237, 228, 205, 0.7);
+    font-family: var(--font-data);
+    font-size: 8px;
+    line-height: 1.35;
+  }
+
+  .mobile-altar__pillar-detail-panel > small {
+    color: rgba(237, 228, 205, 0.42);
+    font-family: var(--font-data);
+    font-size: 7px;
+  }
+
+  .mobile-pillar.is-collapsed .mobile-pillar__crack,
+  .mobile-pillar.is-collapsed .mobile-pillar__crack::before {
+    position: absolute;
+    content: '';
+    top: -12px;
+    left: 50%;
+    width: 2px;
+    height: 60px;
+    background: #1c211d;
+    rotate: 18deg;
+    box-shadow: 9px 12px 0 #1c211d;
+  }
+
+  .mobile-pillar.is-collapsed .mobile-pillar__crack::before {
+    top: 22px;
+    left: -8px;
+    height: 24px;
+    rotate: -56deg;
+    box-shadow: none;
+  }
+
+  .mobile-altar__declare {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 84px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 82px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-altar__declare > p {
+    grid-column: 1;
+    color: rgba(237, 228, 205, 0.66);
+    font-family: var(--font-decree);
+    font-size: 9px;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .mobile-altar__seal-bed {
+    position: relative;
+    grid-column: 2;
+    width: 82px;
+    height: 82px;
+    display: grid;
+    place-items: center;
+  }
+
+  .mobile-altar__seal-shadow {
+    position: absolute;
+    inset: 13px 5px 3px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.48);
+    filter: blur(5px);
+  }
+
+  .mobile-altar__declare button {
+    position: relative;
+    isolation: isolate;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    overflow: hidden;
+    appearance: none;
+    border: 2px solid #8e2f27;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.19), transparent 27%),
+      radial-gradient(circle, #b94737 0 58%, #8f2f27 59% 100%);
+    box-shadow:
+      inset 0 -6px 9px rgba(72, 17, 13, 0.34),
+      inset 0 0 0 4px rgba(255, 218, 190, 0.09),
+      0 5px 0 #64241e,
+      0 8px 13px rgba(0, 0, 0, 0.38);
+    color: #f3d8c1;
+    font-family: var(--font-decree);
+    font-weight: 700;
+    touch-action: none;
+  }
+
+  .mobile-altar__declare button .game-glyph {
+    position: relative;
+    z-index: 2;
+    width: 25px;
+    height: 25px;
+  }
+
+  .mobile-altar__hold-label {
+    position: relative;
+    z-index: 2;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+  }
+
+  .mobile-altar__hold-fill {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(244, 185, 111, 0.38);
+    clip-path: inset(0 100% 0 0);
+  }
+
+  .mobile-altar__declare button.is-holding .mobile-altar__hold-fill {
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.4s linear;
+  }
+
+  .mobile-altar__declare button:disabled {
+    border-color: #535b55;
+    background: radial-gradient(circle, #666e68, #454b47);
+    box-shadow:
+      inset 0 -5px 8px rgba(0, 0, 0, 0.22),
+      0 3px 0 #323733;
+    color: rgba(230, 232, 224, 0.42);
+    filter: saturate(0.2);
+  }
+
+  .mobile-altar-screen.is-striking .mobile-altar__stage {
+    animation: altar-stage-strike 0.48s ease-out;
+  }
+
+  .mobile-altar-screen.is-striking .mobile-pillar.is-selected button {
+    animation: pillar-strike 0.48s ease-out;
+  }
+}
+
+@keyframes altar-stage-strike {
+  0% { filter: brightness(1); }
+  18% { filter: brightness(2.1); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes pillar-strike {
+  0%, 100% { translate: 0 0; }
+  24% { translate: -3px 1px; }
+  42% { translate: 3px -1px; }
+  64% { translate: -1px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-altar__declare button.is-holding .mobile-altar__hold-fill {
+    transition: none;
+  }
+
+  .mobile-pillar__stability i {
+    transition: none;
+  }
+
+  .mobile-altar-screen.is-striking .mobile-altar__stage,
+  .mobile-altar-screen.is-striking .mobile-pillar.is-selected button {
+    animation: none;
+  }
+}

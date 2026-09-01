@@ -15,7 +15,7 @@ import {
   MAX_PROCLAMATIONS_PER_ERA,
   PILLAR_KO,
 } from '../data/initial'
-import { COLLAPSE_RULES } from '../data/rules'
+import { COLLAPSE_RULE_EXAMPLES, COLLAPSE_RULES } from '../data/rules'
 import { createEraCase, createWorldSeed } from '../data/caseFiles'
 import { getDailyWorld, type DailyWorldConfig } from '../data/dailyWorld'
 import { pickGodLine } from '../data/godlines'
@@ -32,6 +32,7 @@ import {
 import { calcProclaimImpact } from '../game/formulas'
 import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
+import { vibrateMobile } from '../mobileFeedback'
 import { josa } from '../utils/josa'
 import { firstGrapheme } from '../utils/emoji'
 import {
@@ -50,6 +51,8 @@ import type {
   EraCaseState,
   FxState,
   GameMode,
+  MobileComboSlot,
+  MobileComboToast,
   Pillar,
   PillarKey,
   ScreenMode,
@@ -147,6 +150,9 @@ export interface GameStore {
   fx: FxState
   stats: GameStats
   codexOpen: boolean
+  mobileComboSlots: [MobileComboSlot | null, MobileComboSlot | null]
+  mobileComboPreparing: boolean
+  mobileComboToast: MobileComboToast | null
 
   startFresh: () => void
   startContinue: () => void
@@ -159,16 +165,23 @@ export interface GameStore {
   setTargetPillar: (key: PillarKey | null) => void
   spawnFromDrawer: (conceptId: string, x: number, y: number) => void
   duplicateInstance: (instanceId: string) => void
+  queueMobileComboInstance: (instanceId: string) => void
+  queueMobileComboConcept: (conceptId: string) => void
+  removeMobileComboSlot: (index: 0 | 1) => void
+  clearMobileComboSlots: () => void
+  clearMobileComboToast: (id: string) => void
   setInstancePos: (instanceId: string, x: number, y: number) => void
   dismissInstance: (instanceId: string) => void
   setDrawerHighlight: (on: boolean) => void
   tidyCanvas: () => void
   openCodex: () => void
   closeCodex: () => void
+  proclaimInstance: (instanceId: string) => void
   handleDrop: (
     instanceId: string,
     center: { x: number; y: number },
     altar: { x: number; y: number },
+    allowProclamation?: boolean,
   ) => void
   endEra: () => void
   openVault: () => void
@@ -181,11 +194,26 @@ export interface GameStore {
 }
 
 function seedInstances(concepts: Concept[]): CanvasInstance[] {
+  const mobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
+  const initialCount = Math.min(concepts.length, 4)
+  const mobileColumns = Math.min(initialCount, 3)
+  const mobileStartX = mobile
+    ? Math.max(
+        14,
+        ((window.innerWidth - 16) -
+          (mobileColumns * CARD_W + Math.max(0, mobileColumns - 1) * 14)) /
+          2,
+      )
+    : 0
   return concepts.slice(0, 4).map((c, i) => ({
     instanceId: uid('i'),
     conceptId: c.id,
-    x: 56 + i * 114,
-    y: 72 + (i % 2) * 40,
+    x: mobile
+      ? mobileStartX + (i % 3) * (CARD_W + 14)
+      : 56 + i * 114,
+    y: mobile ? 82 + Math.floor(i / 3) * 82 : 72 + (i % 2) * 40,
   }))
 }
 
@@ -216,12 +244,18 @@ function createPlayState(opts?: {
   | 'setTargetPillar'
   | 'spawnFromDrawer'
   | 'duplicateInstance'
+  | 'queueMobileComboInstance'
+  | 'queueMobileComboConcept'
+  | 'removeMobileComboSlot'
+  | 'clearMobileComboSlots'
+  | 'clearMobileComboToast'
   | 'setInstancePos'
   | 'dismissInstance'
   | 'setDrawerHighlight'
   | 'tidyCanvas'
   | 'openCodex'
   | 'closeCodex'
+  | 'proclaimInstance'
   | 'handleDrop'
   | 'endEra'
   | 'openVault'
@@ -280,6 +314,9 @@ function createPlayState(opts?: {
       fx: emptyFx(),
       stats: { discoveries: concepts.length, proclamations: 8, resignations: 2 },
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+      mobileComboToast: null,
     }
   }
 
@@ -329,6 +366,9 @@ function createPlayState(opts?: {
       fx: emptyFx(),
       stats: { discoveries: 0, proclamations: 0, resignations: collapsed.length },
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+      mobileComboToast: null,
     }
   }
 
@@ -366,6 +406,9 @@ function createPlayState(opts?: {
     fx: emptyFx(),
     stats: { discoveries: 0, proclamations: 0, resignations: 0 },
     codexOpen: false,
+    mobileComboSlots: [null, null],
+    mobileComboPreparing: false,
+    mobileComboToast: null,
   }
 }
 
@@ -497,6 +540,58 @@ function reduceMotion(): boolean {
   )
 }
 
+function isMobileViewport() {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
+  )
+}
+
+function mobileBoardCenter(excludedInstanceIds: string[] = []) {
+  const board = document.querySelector<HTMLElement>('.canvas-board')
+  if (!board) return { x: 180, y: 160 }
+  const rect = board.getBoundingClientRect()
+  const xMin = CARD_W / 2 + 10
+  const xMax = Math.max(xMin, rect.width - CARD_W / 2 - 10)
+  const yMin = CARD_H / 2 + 14
+  const yMax = Math.max(yMin, rect.height - CARD_H / 2 - 14)
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value))
+  const candidates = [
+    [0.5, 0.5],
+    [0.27, 0.5],
+    [0.73, 0.5],
+    [0.5, 0.26],
+    [0.5, 0.74],
+    [0.25, 0.26],
+    [0.75, 0.26],
+    [0.25, 0.74],
+    [0.75, 0.74],
+  ] as const
+  const current = useGameStore.getState()
+  const visible = current.instances.filter(
+    (instance) => !excludedInstanceIds.includes(instance.instanceId),
+  )
+
+  for (const [xRatio, yRatio] of candidates) {
+    const point = {
+      x: clamp(rect.width * xRatio, xMin, xMax),
+      y: clamp(rect.height * yRatio, yMin, yMax),
+    }
+    const overlaps = visible.some((instance) => {
+      const instanceCenterX = instance.x + CARD_W / 2
+      const instanceCenterY = instance.y + CARD_H / 2
+      return (
+        Math.abs(instanceCenterX - point.x) < CARD_W - 8 &&
+        Math.abs(instanceCenterY - point.y) < CARD_H - 8
+      )
+    })
+    if (!overlaps) return point
+  }
+
+  return { x: rect.width / 2, y: Math.max(CARD_H / 2 + 18, rect.height / 2) }
+}
+
 function triggerEnding(kind: Exclude<EndingKind, null>) {
   const current = useGameStore.getState()
   if (current.gameMode === 'daily') clearDailySave()
@@ -581,6 +676,7 @@ function runCollapseSequence(pillarKey: PillarKey) {
     },
   }))
   sfx.collapse()
+  vibrateMobile(60)
 
   window.setTimeout(() => {
     useGameStore.setState((s) => ({
@@ -889,6 +985,8 @@ function resolveSlot(
             y: i.y,
             processing: false,
             revealDiscovery: isDiscovery || isRerecord,
+            spawnPop: true,
+            ruleStampKeys: [...cur.collapsed],
             rerecord: isRerecord
               ? { previous: previousName!, current: result.name }
               : null,
@@ -897,6 +995,31 @@ function resolveSlot(
     ),
     selectedInstanceId: slotId,
     hoverConceptId: concept.id,
+    mobileComboToast: {
+      id: uid('combo-toast'),
+      first: {
+        id: a.id,
+        emoji: a.emoji,
+        name: a.name,
+        pillar: a.pillar,
+        deleted: a.deleted,
+      },
+      second: {
+        id: b.id,
+        emoji: b.emoji,
+        name: b.name,
+        pillar: b.pillar,
+        deleted: b.deleted,
+      },
+      result: {
+        id: concept.id,
+        emoji: concept.emoji,
+        name: concept.name,
+        pillar: concept.pillar,
+        deleted: concept.deleted,
+      },
+      isDiscovery,
+    },
     message: isRerecord
       ? `같은 조합이 다른 결과: ${previousName} → ${result.name}`
       : isDiscovery
@@ -912,6 +1035,7 @@ function resolveSlot(
 
   if (caseUpdate.justCompleted || isRerecord || isDiscovery) sfx.discover()
   else sfx.combine()
+  vibrateMobile(isDiscovery ? 30 : 15)
 
   if (isDiscovery) {
     bumpDiscoverPop()
@@ -923,34 +1047,42 @@ function resolveSlot(
   window.setTimeout(() => {
     useGameStore.setState((st) => ({
       instances: st.instances.map((i) =>
+        i.instanceId === slotId ? { ...i, ruleStampKeys: undefined } : i,
+      ),
+    }))
+  }, 800)
+
+  window.setTimeout(() => {
+    useGameStore.setState((st) => ({
+      instances: st.instances.map((i) =>
         i.instanceId === slotId
-          ? { ...i, revealDiscovery: false, rerecord: null }
+          ? {
+              ...i,
+              revealDiscovery: false,
+              spawnPop: undefined,
+              ruleStampKeys: undefined,
+              rerecord: null,
+            }
           : i,
       ),
     }))
   }, isRerecord ? 2500 : 900)
 }
 
-function combineAt(
-  aId: string,
-  bId: string,
+function beginCombination(
+  a: Concept,
+  b: Concept,
+  consumedInstanceIds: string[],
   point: { x: number; y: number },
 ) {
   const s = useGameStore.getState()
   if (s.fx.inputLocked || s.screen !== 'play') return
 
-  const aInst = s.instances.find((i) => i.instanceId === aId)
-  const bInst = s.instances.find((i) => i.instanceId === bId)
-  if (!aInst || !bInst || aInst.processing || bInst.processing) return
-
-  const a = s.concepts.find((c) => c.id === aInst.conceptId)
-  const b = s.concepts.find((c) => c.id === bInst.conceptId)
-  if (!a || !b) return
-
   if (a.deleted || b.deleted) {
     useGameStore.setState({ message: '삭제된 개념은 조합할 수 없다' })
     sfx.reject()
-    shakeReject(aId)
+    const firstInput = consumedInstanceIds[0]
+    if (firstInput) shakeReject(firstInput)
     return
   }
 
@@ -966,7 +1098,7 @@ function combineAt(
   useGameStore.setState({
     instances: [
       ...s.instances.filter(
-        (i) => i.instanceId !== aId && i.instanceId !== bId,
+        (i) => !consumedInstanceIds.includes(i.instanceId),
       ),
       slot,
     ],
@@ -990,6 +1122,54 @@ function combineAt(
         world.contaminants,
       ),
     )
+}
+
+function combineAt(
+  aId: string,
+  bId: string,
+  point: { x: number; y: number },
+) {
+  const s = useGameStore.getState()
+  const aInst = s.instances.find((i) => i.instanceId === aId)
+  const bInst = s.instances.find((i) => i.instanceId === bId)
+  if (!aInst || !bInst || aInst.processing || bInst.processing) return
+  const a = s.concepts.find((c) => c.id === aInst.conceptId)
+  const b = s.concepts.find((c) => c.id === bInst.conceptId)
+  if (!a || !b) return
+  beginCombination(a, b, [aId, bId], point)
+}
+
+function scheduleMobileCombination() {
+  const s = useGameStore.getState()
+  const [first, second] = s.mobileComboSlots
+  if (!first || !second || s.mobileComboPreparing) return
+
+  useGameStore.setState({ mobileComboPreparing: true })
+  window.setTimeout(() => {
+    const current = useGameStore.getState()
+    const [aSlot, bSlot] = current.mobileComboSlots
+    if (!current.mobileComboPreparing || !aSlot || !bSlot) return
+
+    const a = current.concepts.find((concept) => concept.id === aSlot.conceptId)
+    const b = current.concepts.find((concept) => concept.id === bSlot.conceptId)
+    const consumed = [aSlot.instanceId, bSlot.instanceId].filter(
+      (id): id is string => !!id,
+    )
+    const missingCanvasInput = [aSlot, bSlot].some(
+      (slot) =>
+        slot.instanceId &&
+        !current.instances.some(
+          (instance) =>
+            instance.instanceId === slot.instanceId && !instance.processing,
+        ),
+    )
+    useGameStore.setState({
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+    })
+    if (!a || !b || missingCanvasInput) return
+    beginCombination(a, b, consumed, mobileBoardCenter(consumed))
+  }, 250)
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -1044,6 +1224,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fx: emptyFx(),
       stats: save.stats,
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+      mobileComboToast: null,
     })
   },
 
@@ -1097,6 +1280,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fx: emptyFx(),
       stats: save.stats,
       codexOpen: false,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
+      mobileComboToast: null,
     })
   },
 
@@ -1151,11 +1337,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const concept = s.concepts.find((item) => item.id === source.conceptId)
     if (!concept || concept.deleted || concept.name === '███') return
 
+    const mobilePoint = isMobileViewport()
+      ? mobileBoardCenter([source.instanceId])
+      : null
     const duplicate: CanvasInstance = {
       instanceId: uid('i'),
       conceptId: source.conceptId,
-      x: source.x + 20,
-      y: source.y + 20,
+      x: mobilePoint ? mobilePoint.x - CARD_W / 2 : source.x + 20,
+      y: mobilePoint ? mobilePoint.y - CARD_H / 2 : source.y + 20,
       spawnPop: true,
     }
     set((state) => ({
@@ -1176,6 +1365,89 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }, 500)
   },
 
+  queueMobileComboInstance: (instanceId) => {
+    const s = get()
+    if (!isMobileViewport() || s.fx.inputLocked || s.mobileComboPreparing) return
+    const inst = s.instances.find((item) => item.instanceId === instanceId)
+    const concept = s.concepts.find((item) => item.id === inst?.conceptId)
+    if (!inst || inst.processing || !concept || concept.deleted) return
+
+    const existingIndex = s.mobileComboSlots.findIndex(
+      (slot) => slot?.instanceId === instanceId,
+    )
+    if (existingIndex >= 0) {
+      const next = [...s.mobileComboSlots] as [
+        MobileComboSlot | null,
+        MobileComboSlot | null,
+      ]
+      next[existingIndex] = null
+      set({ mobileComboSlots: next })
+      sfx.drop()
+      vibrateMobile(6)
+      return
+    }
+
+    const emptyIndex = s.mobileComboSlots.findIndex((slot) => !slot)
+    if (emptyIndex < 0) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[emptyIndex] = {
+      id: uid('mobile-canvas'),
+      conceptId: concept.id,
+      instanceId,
+      source: 'canvas',
+    }
+    set({ mobileComboSlots: next })
+    sfx.pick()
+    vibrateMobile(8)
+    if (next[0] && next[1]) scheduleMobileCombination()
+  },
+
+  queueMobileComboConcept: (conceptId) => {
+    const s = get()
+    if (!isMobileViewport() || s.fx.inputLocked || s.mobileComboPreparing) return
+    const concept = s.concepts.find((item) => item.id === conceptId)
+    if (!concept || concept.deleted) return
+    const emptyIndex = s.mobileComboSlots.findIndex((slot) => !slot)
+    if (emptyIndex < 0) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[emptyIndex] = {
+      id: uid('mobile-drawer'),
+      conceptId,
+      source: 'drawer',
+    }
+    set({ mobileComboSlots: next })
+    sfx.pick()
+    vibrateMobile(8)
+    if (next[0] && next[1]) scheduleMobileCombination()
+  },
+
+  removeMobileComboSlot: (index) => {
+    const s = get()
+    if (s.mobileComboPreparing || !s.mobileComboSlots[index]) return
+    const next = [...s.mobileComboSlots] as [
+      MobileComboSlot | null,
+      MobileComboSlot | null,
+    ]
+    next[index] = null
+    set({ mobileComboSlots: next })
+    sfx.drop()
+    vibrateMobile(6)
+  },
+
+  clearMobileComboSlots: () =>
+    set({ mobileComboSlots: [null, null], mobileComboPreparing: false }),
+
+  clearMobileComboToast: (id) =>
+    set((state) =>
+      state.mobileComboToast?.id === id ? { mobileComboToast: null } : state,
+    ),
+
   setInstancePos: (instanceId, x, y) => {
     set((s) => ({
       instances: s.instances.map((i) =>
@@ -1191,6 +1463,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       instances: s.instances.filter((i) => i.instanceId !== instanceId),
       selectedInstanceId:
         s.selectedInstanceId === instanceId ? null : s.selectedInstanceId,
+      mobileComboSlots: s.mobileComboSlots.map((slot) =>
+        slot?.instanceId === instanceId ? null : slot,
+      ) as [MobileComboSlot | null, MobileComboSlot | null],
       fx: { ...s.fx, drawerHighlight: false },
       message: '카드를 서랍으로 치웠다',
     })
@@ -1207,14 +1482,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tidyCanvas: () => {
     const s = get()
     if (s.fx.inputLocked || s.screen !== 'play') return
-    const GAP = 110
+    const mobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches
+    const mobileCards = s.instances.filter((inst) => !inst.processing)
+    const gapX = mobile ? CARD_W + 8 : 110
+    const gapY = mobile ? CARD_H + 6 : 110
+    const maxCols = mobile
+      ? Math.min(3, Math.max(2, Math.floor((window.innerWidth - 16) / gapX)))
+      : 6
+    const mobileRows = mobile ? Math.ceil(mobileCards.length / maxCols) : 0
+    const boardHeight = mobile
+      ? document.querySelector<HTMLElement>('.canvas-board')?.clientHeight ?? 280
+      : 0
+    const mobileStartY = mobile
+      ? Math.max(
+          20,
+          Math.floor(
+            (boardHeight -
+              (mobileRows * CARD_H + Math.max(0, mobileRows - 1) * 6)) /
+              2,
+          ),
+        )
+      : 0
     let col = 0
     let row = 0
-    const maxCols = 6
     const next = s.instances.map((inst) => {
       if (inst.processing) return inst
-      const x = 16 + col * GAP
-      const y = 28 + row * GAP
+      const cardsInRow = mobile
+        ? Math.min(maxCols, mobileCards.length - row * maxCols)
+        : maxCols
+      const x = mobile
+        ? Math.max(
+            8,
+            ((window.innerWidth - 16) -
+              (cardsInRow * CARD_W + Math.max(0, cardsInRow - 1) * 8)) /
+              2,
+          ) +
+          col * gapX
+        : 16 + col * gapX
+      const y = mobile ? mobileStartY + row * gapY : 28 + row * gapY
       col += 1
       if (col >= maxCols) {
         col = 0
@@ -1232,22 +1539,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   closeCodex: () => set({ codexOpen: false }),
 
-  handleDrop: (instanceId, center, altar) => {
+  proclaimInstance: (instanceId) => {
+    const tutorialStep = get().tutorialStep
+    declareOnAltar(instanceId)
+    if (tutorialStep === 3) markTutorial('done')
+  },
+
+  handleDrop: (instanceId, center, altar, allowProclamation = true) => {
     const state = get()
     if (state.fx.inputLocked || state.screen !== 'play') return
     const dragged = state.instances.find((i) => i.instanceId === instanceId)
     if (!dragged || dragged.processing) return
 
-    if (dist(center.x, center.y, altar.x, altar.y) < ALTAR_R) {
-      declareOnAltar(instanceId)
-      if (state.tutorialStep === 3) {
-        try {
-          localStorage.setItem('tutorialDone', '1')
-        } catch {
-          /* ignore */
-        }
-        set({ tutorialStep: 'done' })
-      }
+    const mobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches
+    const altarDropRadius = ALTAR_R
+    const combineRadius = COMBINE_RADIUS * (mobile ? 1.5 : 1)
+
+    if (
+      allowProclamation &&
+      dist(center.x, center.y, altar.x, altar.y) < altarDropRadius
+    ) {
+      get().proclaimInstance(instanceId)
       return
     }
 
@@ -1257,7 +1571,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const mid = centerOf(c)
         return { c, d: dist(center.x, center.y, mid.x, mid.y) }
       })
-      .filter((x) => x.d < COMBINE_RADIUS)
+      .filter((x) => x.d < combineRadius)
       .sort((a, b) => a.d - b.d)[0]
 
     if (target) {
@@ -1272,10 +1586,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   endEra: () => {
     const s = get()
     if (s.fx.inputLocked || s.screen !== 'play') return
+    if (s.proclamationsThisEra <= 0) {
+      set({ message: '이 시대에 아직 아무것도 선포하지 않았습니다' })
+      return
+    }
 
     const noCollapseJustCompleted =
       s.eraCase.id === 'noCollapse' &&
       !s.eraCase.completed &&
+      s.proclamationsThisEra > 0 &&
       s.collapsed.length === s.eraCase.collapsedAtStart
     const settledCase = noCollapseJustCompleted
       ? { ...s.eraCase, progress: 1, completed: true }
@@ -1292,6 +1611,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       eraCase: settledCase,
       shards: s.shards + (rewarded ? 3 : 0),
       chronicle: settledChronicle,
+      mobileComboSlots: [null, null],
+      mobileComboPreparing: false,
       message: noCollapseJustCompleted
         ? `제${s.era}시대 사건 종결 · 파편 +3`
         : s.message,
@@ -1476,7 +1797,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }, gradeDelayMs(grade))
   },
 
-  clearTypingRule: () => set((s) => ({ fx: { ...s.fx, typingRule: null } })),
+  clearTypingRule: () => {
+    const typingRule = get().fx.typingRule
+    const pillarKey = (
+      Object.entries(COLLAPSE_RULES) as [PillarKey, string][]
+    ).find(([, rule]) => rule === typingRule)?.[0]
+    if (!pillarKey) {
+      set((s) => ({ fx: { ...s.fx, typingRule: null } }))
+      return
+    }
+
+    const notice = `이제 모든 조합에 이 규칙이 개입합니다\n예: ${COLLAPSE_RULE_EXAMPLES[pillarKey]}`
+    set((s) => ({
+      fx: { ...s.fx, typingRule: null, godLine: notice },
+    }))
+    window.setTimeout(() => {
+      useGameStore.setState((s) => ({
+        fx: {
+          ...s.fx,
+          godLine: s.fx.godLine === notice ? null : s.fx.godLine,
+        },
+      }))
+    }, 3200)
+  },
   clearGodLine: () => set((s) => ({ fx: { ...s.fx, godLine: null } })),
 
   dismissTutorial: () => {

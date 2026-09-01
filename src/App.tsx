@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
+import { MobileAltar } from './components/MobileAltar'
+import { MobileComboTray } from './components/MobileComboTray'
+import { MobileComboToast } from './components/MobileComboToast'
+import { MobileArchive } from './components/MobileArchive'
+import {
+  MobileOnboarding,
+  type MobileOnboardingStep,
+} from './components/MobileOnboarding'
 import { ConceptDrawer } from './components/ConceptDrawer'
 import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
@@ -12,10 +20,32 @@ import { EndingScreen } from './components/EndingScreen'
 import { ShardFlights } from './components/ShardFlights'
 import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
+import { GameGlyph } from './components/GameGlyph'
 import { useGameStore } from './store/gameStore'
+import { flushSave } from './persist/runSave'
 import { unlockAudio } from './sfx'
+import {
+  hapticsEnabled,
+  setHapticsEnabled,
+  supportsHaptics,
+} from './mobileFeedback'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
+import './styles/mobileFeedback.css'
+import './styles/mobileGame.css'
+
+type MobileSheet = 'rules' | 'chronicle'
+type MobileView = 'workshop' | 'altar' | 'archive'
+const MOBILE_ONBOARDING_KEY = 'uncat-mobile-onboarding-v1'
+
+function initialMobileOnboarding(): MobileOnboardingStep {
+  try {
+    const saved = localStorage.getItem(MOBILE_ONBOARDING_KEY)
+    return saved === 'done' ? 'done' : 'combo'
+  } catch {
+    return 'combo'
+  }
+}
 
 function applyDecay(count: number) {
   const root = document.documentElement
@@ -38,7 +68,11 @@ export default function App() {
   const shards = useGameStore((s) => s.shards)
   const discoveredIds = useGameStore((s) => s.discoveredIds)
   const proclamationsThisEra = useGameStore((s) => s.proclamationsThisEra)
+  const eraCase = useGameStore((s) => s.eraCase)
   const message = useGameStore((s) => s.message)
+  const mobileComboToast = useGameStore((s) => s.mobileComboToast)
+  const gameMode = useGameStore((s) => s.gameMode)
+  const stats = useGameStore((s) => s.stats)
   const muted = useGameStore((s) => s.muted)
   const collapsed = useGameStore((s) => s.collapsed)
   const fx = useGameStore((s) => s.fx)
@@ -48,15 +82,134 @@ export default function App() {
   const reset = useGameStore((s) => s.reset)
   const openCodex = useGameStore((s) => s.openCodex)
   const closeCodex = useGameStore((s) => s.closeCodex)
-  const [confirmation, setConfirmation] = useState<'title' | 'reset' | null>(
+  const endEra = useGameStore((s) => s.endEra)
+  const tidyCanvas = useGameStore((s) => s.tidyCanvas)
+  const queueMobileComboInstance = useGameStore((s) => s.queueMobileComboInstance)
+  const clearMobileComboSlots = useGameStore((s) => s.clearMobileComboSlots)
+  const selectedInstanceId = useGameStore((s) => s.selectedInstanceId)
+  const duplicateInstance = useGameStore((s) => s.duplicateInstance)
+  const [confirmation, setConfirmation] = useState<'title' | 'reset' | 'endEra' | null>(
     null,
   )
+  const [mobileSheet, setMobileSheet] = useState<MobileSheet | null>(null)
+  const [mobileView, setMobileView] = useState<MobileView>('workshop')
+  const [mobilePrecedentOpen, setMobilePrecedentOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileCodexOrigin, setMobileCodexOrigin] = useState<MobileView | null>(null)
+  const [hapticsOn, setHapticsOn] = useState(() => hapticsEnabled())
+  const hapticsAvailable = supportsHaptics()
+  const [mobileOnboarding, setMobileOnboarding] = useState<MobileOnboardingStep>(
+    initialMobileOnboarding,
+  )
+  const mobileHistoryIgnorePop = useRef(false)
 
   const discoveryCount = discoveredIds.length
   const remainingDeclares = Math.max(
     0,
     MAX_PROCLAMATIONS_PER_ERA - proclamationsThisEra,
   )
+  const noCollapseWillComplete =
+    eraCase.id === 'noCollapse' &&
+    collapsed.length === eraCase.collapsedAtStart
+  const eraCaseWillReward = eraCase.completed || noCollapseWillComplete
+
+  const isMobile = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 767px)').matches
+  const pushMobileHistory = (kind: string, view = mobileView) => {
+    if (!isMobile()) return
+    window.history.pushState(
+      {
+        ...(window.history.state ?? {}),
+        uncatMobile: { kind, view },
+      },
+      '',
+    )
+  }
+  const discardMobileHistory = () => {
+    if (!isMobile() || !window.history.state?.uncatMobile) return
+    mobileHistoryIgnorePop.current = true
+    window.history.back()
+  }
+  const openMobileMenu = () => {
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false)
+      discardMobileHistory()
+      return
+    }
+    pushMobileHistory('menu')
+    setMobileMenuOpen(true)
+  }
+  const openMobileSheet = (sheet: MobileSheet) => {
+    if (!mobileMenuOpen) pushMobileHistory('sheet')
+    setMobileMenuOpen(false)
+    setMobileSheet(sheet)
+  }
+  const closeMobileSheet = () => {
+    setMobileSheet(null)
+    discardMobileHistory()
+  }
+  const openMobilePrecedent = () => {
+    pushMobileHistory('precedent')
+    setMobilePrecedentOpen(true)
+  }
+  const closeMobilePrecedent = () => {
+    setMobilePrecedentOpen(false)
+    discardMobileHistory()
+  }
+  const openMobileCodex = () => {
+    pushMobileHistory('codex', mobileView)
+    setMobileCodexOrigin(mobileView)
+    if (mobileView === 'archive') setMobileView('workshop')
+    openCodex()
+  }
+  const closeMobileCodex = () => {
+    closeCodex()
+    if (mobileCodexOrigin === 'archive') setMobileView('archive')
+    setMobileCodexOrigin(null)
+    discardMobileHistory()
+  }
+  const finishMobileCodexSpawn = () => {
+    closeCodex()
+    setMobileCodexOrigin(null)
+    setMobileView('workshop')
+    discardMobileHistory()
+  }
+  const openMobileAltar = () => {
+    pushMobileHistory('altar', 'altar')
+    clearMobileComboSlots()
+    setMobileView('altar')
+  }
+  const openMobileArchive = () => {
+    pushMobileHistory('archive', 'archive')
+    setMobileView('archive')
+  }
+  const returnToWorkshop = () => {
+    if (mobileView !== 'workshop') discardMobileHistory()
+    setMobileView('workshop')
+  }
+  const requestEndEra = () => {
+    if (proclamationsThisEra <= 0 || fx.inputLocked) return
+    if (!eraCaseWillReward) {
+      if (isMobile() && !mobileMenuOpen) pushMobileHistory('confirmation')
+      setConfirmation('endEra')
+      return
+    }
+    endEra()
+  }
+  const closeConfirmation = () => {
+    setConfirmation(null)
+    discardMobileHistory()
+  }
+  const setMobileOnboardingStep = (step: MobileOnboardingStep) => {
+    setMobileOnboarding(step)
+    if (step !== 'done') return
+    try {
+      localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done')
+    } catch {
+      /* 첫 판 안내는 저장에 실패해도 현재 세션에서만 마친다. */
+    }
+  }
 
   useEffect(() => {
     applyDecay(collapsed.length)
@@ -72,6 +225,7 @@ export default function App() {
     if (screen !== 'play') return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
+      if (window.matchMedia('(max-width: 767px)').matches) return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       e.preventDefault()
@@ -81,6 +235,82 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [screen, codexOpen, openCodex, closeCodex])
+
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)')
+    const closeMobileOverlays = () => {
+      if (query.matches) {
+        setMobileSheet(null)
+        setMobileView('workshop')
+        setMobilePrecedentOpen(false)
+        setMobileMenuOpen(false)
+        setMobileCodexOrigin(null)
+      }
+    }
+    closeMobileOverlays()
+    query.addEventListener('change', closeMobileOverlays)
+    return () => query.removeEventListener('change', closeMobileOverlays)
+  }, [])
+
+  useEffect(() => {
+    const saveNow = () => flushSave(useGameStore.getState())
+    const onVisibilityChange = () => {
+      if (document.hidden) saveNow()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', saveNow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pagehide', saveNow)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (!isMobile()) return
+      if (mobileHistoryIgnorePop.current) {
+        mobileHistoryIgnorePop.current = false
+        return
+      }
+      const hasMobileLayer =
+        !!mobileSheet ||
+        mobileMenuOpen ||
+        mobilePrecedentOpen ||
+        codexOpen ||
+        !!confirmation ||
+        mobileView !== 'workshop'
+      if (!hasMobileLayer) return
+      const restoreView = event.state?.uncatMobile?.view
+      setMobileSheet(null)
+      setMobileMenuOpen(false)
+      setMobilePrecedentOpen(false)
+      setConfirmation(null)
+      if (codexOpen) closeCodex()
+      setMobileCodexOrigin(null)
+      setMobileView(
+        restoreView === 'altar' || restoreView === 'archive'
+          ? restoreView
+          : 'workshop',
+      )
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [mobileSheet, mobileMenuOpen, mobilePrecedentOpen, codexOpen, confirmation, mobileView, closeCodex])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'combo') return
+    if (mobileComboToast) setMobileOnboardingStep('altar')
+  }, [gameMode, mobileComboToast, mobileOnboarding])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'altar') return
+    if (mobileView === 'altar') setMobileOnboardingStep('proclaim')
+  }, [gameMode, mobileOnboarding, mobileView])
+
+  useEffect(() => {
+    if (!isMobile() || gameMode === 'demo' || mobileOnboarding !== 'proclaim') return
+    if (stats.proclamations > 0) setMobileOnboardingStep('done')
+  }, [gameMode, mobileOnboarding, stats.proclamations])
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -97,7 +327,7 @@ export default function App() {
 
   return (
     <div
-      className={`app${fx.unclassifiedFx ? ' is-voiding' : ''}`}
+      className={`app mobile-era-${era}${coherence <= 30 ? ' is-coherence-critical' : ''}${collapsed.length > 0 ? ' has-collapsed-pillars' : ''}${fx.sealFlash ? ' is-mobile-impacting' : ''}${fx.unclassifiedFx ? ' is-voiding' : ''}`}
       onPointerDown={() => unlockAudio()}
     >
       {fx.whiteFlash && <div className="flash-white" />}
@@ -129,7 +359,10 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__stats">
             <label className="topbar__discover">
-              <span>발견</span>
+              <span>
+                <span className="topbar__desktop-label">발견</span>
+                <GameGlyph kind="discovery" className="topbar__mobile-glyph" />
+              </span>
               <motion.strong
                 key={fx.discoverPop}
                 className={`topbar__discover-num${fx.discoverPop > 0 ? ' is-pop' : ''}`}
@@ -140,26 +373,35 @@ export default function App() {
                 <AnimatedNumber value={discoveryCount} digits={0} />
               </motion.strong>
             </label>
-            <label>
+            <label className="topbar__coherence">
               <span>정합성</span>
-              <strong>
+              <strong className={coherence <= 30 ? 'is-critical' : ''}>
                 <AnimatedNumber value={coherence} digits={1} />
               </strong>
             </label>
             <label>
-              <span>시대</span>
+              <span>
+                <span className="topbar__desktop-label">시대</span>
+                <GameGlyph kind="era" className="topbar__mobile-glyph" />
+              </span>
               <strong>
                 {era}/{MAX_ERA}
               </strong>
             </label>
             <label>
-              <span>선포 잔여</span>
+              <span>
+                <span className="topbar__desktop-label">선포 잔여</span>
+                <GameGlyph kind="proclamation" className="topbar__mobile-glyph" />
+              </span>
               <strong>
                 {remainingDeclares}
               </strong>
             </label>
             <label>
-              <span>파편</span>
+              <span>
+                <span className="topbar__desktop-label">파편</span>
+                <GameGlyph kind="shard" className="topbar__mobile-glyph" />
+              </span>
               <motion.strong
                 key={fx.shardPop}
                 className="topbar__shard-num"
@@ -176,10 +418,19 @@ export default function App() {
           </div>
 
           <div className="topbar__actions">
-            {message && <p className="topbar__msg">{message}</p>}
+            {message && <p className="topbar__msg" aria-live="polite">{message}</p>}
             <button
               type="button"
-              className="linkish"
+              className="topbar__more"
+              onClick={openMobileMenu}
+              aria-label="게임 메뉴"
+              aria-expanded={mobileMenuOpen}
+            >
+              <GameGlyph kind="menu" />
+            </button>
+            <button
+              type="button"
+              className="linkish topbar__desktop-action"
               onClick={toggleMute}
               aria-label={muted ? '소리 켜기' : '음소거'}
             >
@@ -187,14 +438,14 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="topbar__reset"
+              className="topbar__reset topbar__desktop-action"
               onClick={() => setConfirmation('title')}
             >
               타이틀
             </button>
             <button
               type="button"
-              className="topbar__reset"
+              className="topbar__reset topbar__desktop-action"
               onClick={() => setConfirmation('reset')}
             >
               초기화
@@ -202,16 +453,246 @@ export default function App() {
           </div>
         </header>
 
-        <div className="app__main">
+        <div className={`app__main is-mobile-${mobileView}`}>
           <div className="playfield">
             <CaseBanner />
-            <CanvasBoard />
-            <ConceptDrawer />
+            <CanvasBoard
+              onMobileCardTap={queueMobileComboInstance}
+              onMobileCardLongPress={openMobilePrecedent}
+              onEndEra={requestEndEra}
+            />
+            <MobileComboTray />
+            <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
+            <div className="mobile-workshop-mark" aria-hidden>
+              <span><GameGlyph kind="workshop" /></span>
+              <div>
+                <strong>제{era}시대 기록 공방</strong>
+                <i>OFFICINA RERUM</i>
+              </div>
+            </div>
+            <MobileComboToast />
             <StatStrip />
           </div>
+          <MobileAltar />
           <SidePanel />
+          <MobileArchive
+            onOpenCodex={openMobileCodex}
+            onOpenSheet={openMobileSheet}
+          />
+          {remainingDeclares === 0 && (
+            <button
+              type="button"
+              className="mobile-era-cta"
+              onClick={requestEndEra}
+              disabled={fx.inputLocked}
+            >
+              <GameGlyph kind="era" />
+              <span>
+                <strong>시대 마감</strong>
+                <small>
+                  {eraCaseWillReward
+                    ? '세계를 정산하고 다음 시대로'
+                    : '사건 미완료 · 파편 3개 포기'}
+                </small>
+              </span>
+            </button>
+          )}
+          <nav className="mobile-tabbar" aria-label="주요 화면">
+            <button
+              type="button"
+              className={mobileView === 'workshop' ? 'is-active' : ''}
+              aria-current={mobileView === 'workshop' ? 'page' : undefined}
+              onClick={returnToWorkshop}
+            >
+              <GameGlyph kind="workshop" />
+              <span className="mobile-tabbar__label">공방</span>
+            </button>
+            <button
+              type="button"
+              className={`${mobileView === 'altar' ? 'is-active' : ''}${mobileOnboarding === 'altar' ? ' is-onboarding-pulse' : ''}`}
+              aria-current={mobileView === 'altar' ? 'page' : undefined}
+              onClick={openMobileAltar}
+            >
+              <GameGlyph kind="altar" />
+              <span className="mobile-tabbar__label">제단</span>
+              {remainingDeclares > 0 && (
+                <b aria-label={`선포 가능 ${remainingDeclares}회`}>{remainingDeclares}</b>
+              )}
+            </button>
+            <button
+              type="button"
+              className={mobileView === 'archive' ? 'is-active' : ''}
+              aria-current={mobileView === 'archive' ? 'page' : undefined}
+              onClick={openMobileArchive}
+            >
+              <GameGlyph kind="codex" />
+              <span className="mobile-tabbar__label">기록소</span>
+              {shards >= 10 && <b aria-label="보관소 회수 가능">◈</b>}
+            </button>
+          </nav>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {mobileSheet && (
+          <motion.div
+            className="mobile-sheet-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) closeMobileSheet()
+            }}
+          >
+            <motion.section
+              className="mobile-sheet"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={mobileSheet === 'rules' ? '생성 규칙' : '연대기'}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <header className="mobile-sheet__head">
+                <h2>{mobileSheet === 'rules' ? '생성 규칙' : '연대기'}</h2>
+                <button
+                  type="button"
+                  onClick={closeMobileSheet}
+                  aria-label="시트 닫기"
+                >
+                  ✕
+                </button>
+              </header>
+              <SidePanel view={mobileSheet} />
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="mobile-menu-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setMobileMenuOpen(false)
+                discardMobileHistory()
+              }
+            }}
+          >
+            <motion.div
+              className="mobile-menu"
+              initial={{ y: -8, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -8, opacity: 0 }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <button type="button" onClick={() => openMobileSheet('rules')}>
+                생성 규칙
+              </button>
+              <button type="button" onClick={() => openMobileSheet('chronicle')}>
+                연대기
+              </button>
+              <button
+                type="button"
+                disabled={proclamationsThisEra <= 0 || fx.inputLocked}
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  const willConfirm = !eraCaseWillReward
+                  if (!willConfirm) discardMobileHistory()
+                  requestEndEra()
+                }}
+              >
+                <span>시대 마감</span>
+                {proclamationsThisEra <= 0 && (
+                  <small>이 시대에 아직 아무것도 선포하지 않았습니다</small>
+                )}
+              </button>
+              <button type="button" onClick={() => { tidyCanvas(); setMobileMenuOpen(false); discardMobileHistory() }}>
+                정리
+              </button>
+              <button type="button" onClick={() => { setConfirmation('title'); setMobileMenuOpen(false) }}>
+                타이틀
+              </button>
+              <button type="button" onClick={() => { setConfirmation('reset'); setMobileMenuOpen(false) }}>
+                초기화
+              </button>
+              <button type="button" onClick={() => { toggleMute(); setMobileMenuOpen(false); discardMobileHistory() }}>
+                {muted ? '소리 켜기' : '음소거'}
+              </button>
+              <button
+                type="button"
+                className="mobile-menu__haptics"
+                role="switch"
+                aria-checked={hapticsOn}
+                disabled={!hapticsAvailable}
+                onClick={() => {
+                  const next = !hapticsOn
+                  setHapticsOn(next)
+                  setHapticsEnabled(next)
+                }}
+              >
+                진동 <span>{hapticsAvailable ? (hapticsOn ? '켜짐' : '꺼짐') : '미지원'}</span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mobilePrecedentOpen && (
+          <motion.div
+            className="mobile-precedent-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) closeMobilePrecedent()
+            }}
+          >
+            <motion.section
+              className="mobile-precedent"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+              role="dialog"
+              aria-label="판례"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <header className="mobile-sheet__head">
+                <h2>판례</h2>
+                <div className="mobile-precedent__actions">
+                  <button
+                    type="button"
+                    className="mobile-precedent__duplicate"
+                    disabled={!selectedInstanceId || fx.inputLocked}
+                    onClick={() => {
+                      if (selectedInstanceId) duplicateInstance(selectedInstanceId)
+                      closeMobilePrecedent()
+                    }}
+                  >
+                    복제
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeMobilePrecedent}
+                    aria-label="판례 닫기"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </header>
+              <StatStrip />
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {confirmation && (
@@ -221,7 +702,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmation(null)
+              if (e.target === e.currentTarget) closeConfirmation()
             }}
           >
             <motion.div
@@ -231,19 +712,25 @@ export default function App() {
               exit={{ y: 8, opacity: 0 }}
               role="dialog"
               aria-label={
-                confirmation === 'title' ? '타이틀 이동 확인' : '초기화 확인'
+                confirmation === 'title'
+                  ? '타이틀 이동 확인'
+                  : confirmation === 'reset'
+                    ? '초기화 확인'
+                    : '시대 마감 확인'
               }
             >
               <p>
                 {confirmation === 'title'
                   ? '타이틀로 돌아갑니다. 진행 상황은 저장됩니다.'
-                  : '이 세계의 모든 기록이 사라집니다. 계속할까요?'}
+                  : confirmation === 'reset'
+                    ? '이 세계의 모든 기록이 사라집니다. 계속할까요?'
+                    : `제${era}시대 사건이 미완료입니다. 파편 3개를 포기합니다.`}
               </p>
               <div className="confirm-reset__actions">
                 <button
                   type="button"
                   className="confirm-reset__cancel"
-                  onClick={() => setConfirmation(null)}
+                  onClick={closeConfirmation}
                 >
                   취소
                 </button>
@@ -253,11 +740,17 @@ export default function App() {
                   onClick={() => {
                     const action = confirmation
                     setConfirmation(null)
+                    discardMobileHistory()
                     if (action === 'title') returnToTitle()
-                    else reset()
+                    else if (action === 'reset') reset()
+                    else endEra()
                   }}
                 >
-                  {confirmation === 'title' ? '타이틀' : '초기화'}
+                  {confirmation === 'title'
+                    ? '타이틀'
+                    : confirmation === 'reset'
+                      ? '초기화'
+                      : '마감'}
                 </button>
               </div>
             </motion.div>
@@ -266,7 +759,15 @@ export default function App() {
       </AnimatePresence>
 
       <VaultModal />
-      <CodexModal />
+      <CodexModal
+        onMobileClose={closeMobileCodex}
+        onMobileSpawn={finishMobileCodexSpawn}
+      />
+      {gameMode !== 'demo' &&
+        mobileView !== 'archive' &&
+        !(mobileView === 'altar' && mobileOnboarding === 'combo') && (
+          <MobileOnboarding step={mobileOnboarding} />
+        )}
       {screen === 'ending' && <EndingScreen />}
       <DebugBadge />
     </div>

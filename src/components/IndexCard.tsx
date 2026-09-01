@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { motion } from 'motion/react'
 import { PillarTooltip } from './PillarTooltip'
+import { GameGlyph } from './GameGlyph'
 import type { Concept, PillarKey } from '../types'
 import { SEAL_GLYPH, SEAL_TITLE, sealOf } from '../types'
 import './IndexCard.css'
@@ -51,6 +52,7 @@ export function IndexCard({
         .filter(Boolean)
         .join(' ')}
       style={style}
+      data-pillar={seal}
       onHoverStart={onHoverStart}
       onHoverEnd={onHoverEnd}
       onClick={onClick}
@@ -75,9 +77,14 @@ export function IndexCard({
           {glyph}
         </span>
       </PillarTooltip>
-      <span className="index-card__emoji" aria-hidden>
+      <span className="index-card__emoji index-card__emoji--platform" aria-hidden>
         {concept.emoji}
       </span>
+      <GameGlyph
+        kind="concept"
+        concept={concept}
+        className="index-card__game-glyph"
+      />
       <span className="index-card__name">{concept.name}</span>
       {isDiscovery && !concept.deleted && (
         <span className="index-card__star" aria-hidden>

@@ -32,3 +32,16 @@ h3,
 p {
   margin: 0;
 }
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  body {
+    touch-action: manipulation;
+  }
+}
