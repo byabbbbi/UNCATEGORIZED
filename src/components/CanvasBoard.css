@@ -402,6 +402,10 @@
     filter: drop-shadow(0 7px 5px rgba(25, 25, 20, 0.22));
   }
 
+  .canvas-board.is-mobile-sparse .canvas-card:not(.card-back-loader) .index-card {
+    transform: scale(1.12);
+  }
+
   .canvas-board.is-mobile-compact .canvas-card:not(.card-back-loader) .index-card {
     transform: scale(1.07);
   }

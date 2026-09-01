@@ -190,52 +190,54 @@ export function ConceptDrawer({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="drawer__codex"
-        onClick={() => {
-          if (isMobileViewport()) onMobileOpenCodex?.()
-          else openCodex()
-        }}
-        title="전체 대장 보기"
-      >
-        <GameGlyph kind="codex" />
-        <span>전체 {concepts.length}</span>
-      </button>
+      <div className="drawer__actions">
+        <button
+          type="button"
+          className="drawer__codex"
+          onClick={() => {
+            if (isMobileViewport()) onMobileOpenCodex?.()
+            else openCodex()
+          }}
+          title="전체 대장 보기"
+        >
+          <GameGlyph kind="codex" />
+          <span>전체 {concepts.length}</span>
+        </button>
 
-      <button
-        type="button"
-        className={`drawer__vault${shards >= 10 ? ' is-ready' : ''}`}
-        onClick={openVault}
-        title={`분실물 보관소 (${filled}/10)`}
-        aria-label={`분실물 보관소 파편 ${filled} / 10`}
-      >
-        <svg className="drawer__vault-ring" viewBox="0 0 64 64" aria-hidden>
-          <circle
-            className="drawer__vault-ring-track"
-            cx="32"
-            cy="32"
-            r={RING_R}
-            fill="none"
-          />
-          <circle
-            className="drawer__vault-ring-fill"
-            cx="32"
-            cy="32"
-            r={RING_R}
-            fill="none"
-            strokeDasharray={RING_C}
-            strokeDashoffset={offset}
-            transform="rotate(-90 32 32)"
-          />
-        </svg>
-        <GameGlyph kind="vault" className="drawer__vault-back" />
-        <span className="drawer__vault-wax" aria-hidden />
-        <span className="drawer__vault-count" aria-hidden>
-          {filled}/10
-        </span>
-        {shards >= 10 && <span className="drawer__pulse" />}
-      </button>
+        <button
+          type="button"
+          className={`drawer__vault${shards >= 10 ? ' is-ready' : ''}`}
+          onClick={openVault}
+          title={`분실물 보관소 (${filled}/10)`}
+          aria-label={`분실물 보관소 파편 ${filled} / 10`}
+        >
+          <svg className="drawer__vault-ring" viewBox="0 0 64 64" aria-hidden>
+            <circle
+              className="drawer__vault-ring-track"
+              cx="32"
+              cy="32"
+              r={RING_R}
+              fill="none"
+            />
+            <circle
+              className="drawer__vault-ring-fill"
+              cx="32"
+              cy="32"
+              r={RING_R}
+              fill="none"
+              strokeDasharray={RING_C}
+              strokeDashoffset={offset}
+              transform="rotate(-90 32 32)"
+            />
+          </svg>
+          <GameGlyph kind="vault" className="drawer__vault-back" />
+          <span className="drawer__vault-wax" aria-hidden />
+          <span className="drawer__vault-count" aria-hidden>
+            {filled}/10
+          </span>
+          {shards >= 10 && <span className="drawer__pulse" />}
+        </button>
+      </div>
     </div>
   )
 }

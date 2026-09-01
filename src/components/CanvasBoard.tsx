@@ -339,7 +339,6 @@ export function CanvasBoard({
   const collapsedCount = useGameStore((s) => s.collapsed.length)
   const pillarStability = pillarStabilityMap(pillars)
   const boardRef = useRef<HTMLElement>(null)
-  const mobileLayoutApplied = useRef(false)
 
   const initialDiscoveries = new Set(
     discoveredIds.filter((id) => !['void', 'spark', 'clay', 'tide'].includes(id)),
@@ -350,28 +349,28 @@ export function CanvasBoard({
   const eraUrgent = eraRemainingZero || coherence <= 30
   const eraEndLocked = proclamationsThisEra <= 0
   const eraEndReason = '이 시대에 아직 아무것도 선포하지 않았습니다'
-  const isCompactMobileBoard = instances.length <= 5
+  const mobileBoardDensity =
+    instances.length <= 2
+      ? 'sparse'
+      : instances.length <= 5
+        ? 'compact'
+        : 'expanded'
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 767px)')
     const applyMobileLayout = () => {
-      if (!query.matches) {
-        mobileLayoutApplied.current = false
-        return
-      }
-      if (mobileLayoutApplied.current) return
-      mobileLayoutApplied.current = true
+      if (!query.matches) return
       window.requestAnimationFrame(tidyCanvas)
     }
     applyMobileLayout()
     query.addEventListener('change', applyMobileLayout)
     return () => query.removeEventListener('change', applyMobileLayout)
-  }, [tidyCanvas])
+  }, [mobileBoardDensity, tidyCanvas])
 
   return (
     <section
       ref={boardRef}
-      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''}${isCompactMobileBoard ? ' is-mobile-compact' : ' is-mobile-expanded'}`}
+      className={`canvas-board${tutorialStep === 3 ? ' is-altar-pulse' : ''}${mobileComboPreparing ? ' is-combo-preparing' : ''} is-mobile-${mobileBoardDensity}`}
       style={{ ['--decay' as string]: collapsedCount }}
     >
       <div className="workshop-scene" aria-hidden>
