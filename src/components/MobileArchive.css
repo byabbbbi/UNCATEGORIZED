@@ -188,6 +188,18 @@
     border-color: rgba(206, 101, 75, 0.44);
   }
 
+  .mobile-archive__entry--eras {
+    border-color: rgba(222, 180, 92, 0.52);
+    background:
+      radial-gradient(circle at 12% 50%, rgba(225, 186, 95, 0.13), transparent 28%),
+      linear-gradient(120deg, rgba(255, 255, 255, 0.13), transparent 42%),
+      rgba(232, 221, 194, 0.1);
+  }
+
+  .mobile-archive__entry--eras > em {
+    color: #ffe0a0;
+  }
+
   .mobile-archive__entry--rules.is-alert .mobile-archive__entry-icon,
   .mobile-archive__entry--rules.is-alert > em {
     color: var(--seal-light);

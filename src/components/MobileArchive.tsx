@@ -2,7 +2,7 @@ import { GameGlyph } from './GameGlyph'
 import { useGameStore } from '../store/gameStore'
 import './MobileArchive.css'
 
-type ArchiveSheet = 'rules' | 'chronicle'
+type ArchiveSheet = 'eras' | 'rules' | 'chronicle'
 
 export function MobileArchive({
   onOpenCodex,
@@ -41,6 +41,21 @@ export function MobileArchive({
       </header>
 
       <div className="mobile-archive__entries">
+        <button
+          type="button"
+          className="mobile-archive__entry mobile-archive__entry--eras"
+          onClick={() => onOpenSheet('eras')}
+        >
+          <span className="mobile-archive__entry-icon" aria-hidden>
+            <GameGlyph kind="era" />
+          </span>
+          <span className="mobile-archive__entry-copy">
+            <strong>시대 흐름</strong>
+            <span>현재 사건과 선포·마감 조건을 확인합니다.</span>
+          </span>
+          <em>지도</em>
+        </button>
+
         <button
           type="button"
           className="mobile-archive__entry mobile-archive__entry--codex"

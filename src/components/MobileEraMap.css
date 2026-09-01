@@ -1,0 +1,372 @@
+.mobile-era-map {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-era-map {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    align-content: start;
+    gap: 11px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 13px calc(18px + env(safe-area-inset-bottom));
+    color: var(--mobile-ink);
+  }
+
+  .mobile-era-map h3,
+  .mobile-era-map p {
+    margin: 0;
+  }
+
+  .mobile-era-map__journey,
+  .mobile-era-map__case,
+  .mobile-era-map__proclamations,
+  .mobile-era-map__next,
+  .mobile-era-map__past {
+    border: 1px solid rgba(104, 80, 45, 0.25);
+    border-radius: 9px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.28), transparent 42%),
+      rgba(218, 206, 178, 0.34);
+    box-shadow: 0 2px 0 rgba(64, 50, 32, 0.15);
+  }
+
+  .mobile-era-map__journey {
+    padding: 10px 10px 12px;
+  }
+
+  .mobile-era-map__journey > header,
+  .mobile-era-map__proclamations > header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mobile-era-map__journey header span,
+  .mobile-era-map__next span {
+    display: block;
+    color: color-mix(in srgb, var(--mobile-ink) 54%, transparent);
+    font-family: var(--font-data);
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .mobile-era-map__journey h3,
+  .mobile-era-map__proclamations h3 {
+    margin-top: 2px;
+    font-family: var(--font-decree);
+    font-size: 14px;
+    letter-spacing: 0.05em;
+  }
+
+  .mobile-era-map__journey header > strong {
+    color: var(--seal-bright);
+    font-family: var(--font-data);
+    font-size: 15px;
+  }
+
+  .mobile-era-map__journey ol {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    margin: 13px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mobile-era-map__journey ol::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    right: 7%;
+    left: 7%;
+    height: 2px;
+    background: rgba(80, 68, 50, 0.2);
+  }
+
+  .mobile-era-map__journey li {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+  }
+
+  .mobile-era-map__journey li > span {
+    width: 29px;
+    height: 29px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(88, 72, 50, 0.28);
+    border-radius: 50%;
+    background: var(--mobile-paper-dark);
+    color: rgba(55, 48, 37, 0.42);
+    font-family: var(--font-data);
+    font-size: 10px;
+  }
+
+  .mobile-era-map__journey li > em {
+    color: rgba(55, 48, 37, 0.42);
+    font-family: var(--font-data);
+    font-size: 7px;
+    font-style: normal;
+  }
+
+  .mobile-era-map__journey li.is-past > span {
+    border-color: rgba(116, 91, 47, 0.5);
+    background: var(--mobile-wood);
+    color: var(--mobile-paper);
+  }
+
+  .mobile-era-map__journey li.is-current > span {
+    border-color: var(--seal-bright);
+    background: var(--seal-bright);
+    box-shadow: 0 0 0 4px rgba(181, 58, 43, 0.13), 0 2px 0 rgba(65, 34, 28, 0.26);
+    color: #fff1dc;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .mobile-era-map__journey li.is-current > em {
+    color: var(--seal-bright);
+    font-weight: 700;
+  }
+
+  .mobile-era-map__case {
+    padding: 11px;
+    box-shadow: inset 3px 0 0 var(--mobile-gold), 0 2px 0 rgba(64, 50, 32, 0.15);
+  }
+
+  .mobile-era-map__case.is-ready {
+    box-shadow: inset 3px 0 0 var(--seal-bright), 0 2px 0 rgba(64, 50, 32, 0.15);
+  }
+
+  .mobile-era-map__case > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: color-mix(in srgb, var(--mobile-ink) 62%, transparent);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-era-map__case > header span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-era-map__case > header .game-glyph {
+    width: 14px;
+    height: 14px;
+    color: var(--mobile-gold);
+  }
+
+  .mobile-era-map__case > header em {
+    color: var(--seal-bright);
+    font-style: normal;
+  }
+
+  .mobile-era-map__case > strong {
+    display: block;
+    margin-top: 7px;
+    font-family: var(--font-decree);
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .mobile-era-map__case-track {
+    height: 5px;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(64, 53, 39, 0.16);
+  }
+
+  .mobile-era-map__case-track i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--mobile-gold), var(--seal-bright));
+    transition: width 0.3s ease-out;
+  }
+
+  .mobile-era-map__case > p {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 7px;
+    color: color-mix(in srgb, var(--mobile-ink) 58%, transparent);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-era-map__case > p .game-glyph {
+    width: 13px;
+    height: 13px;
+    color: var(--mobile-gold);
+  }
+
+  .mobile-era-map__case > p b {
+    color: var(--seal-bright);
+  }
+
+  .mobile-era-map__proclamations {
+    padding: 10px;
+  }
+
+  .mobile-era-map__proclamations header > span {
+    color: var(--seal-bright);
+    font-family: var(--font-data);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .mobile-era-map__proclamations ol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mobile-era-map__proclamations li {
+    min-width: 0;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    border: 1px dashed rgba(78, 63, 43, 0.25);
+    border-radius: 6px;
+    padding: 7px 3px 5px;
+    color: rgba(61, 51, 38, 0.35);
+  }
+
+  .mobile-era-map__proclamations li.is-used {
+    border-style: solid;
+    border-color: rgba(179, 59, 43, 0.48);
+    background: rgba(179, 59, 43, 0.08);
+    color: var(--seal-bright);
+  }
+
+  .mobile-era-map__proclamations .game-glyph {
+    width: 19px;
+    height: 19px;
+  }
+
+  .mobile-era-map__proclamations li span {
+    overflow: hidden;
+    max-width: 100%;
+    font-family: var(--font-data);
+    font-size: 7px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-era-map__next {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .mobile-era-map__next.is-urgent {
+    border-color: rgba(181, 58, 43, 0.46);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.2), transparent 42%),
+      rgba(181, 58, 43, 0.11);
+  }
+
+  .mobile-era-map__next > .game-glyph {
+    width: 29px;
+    height: 29px;
+    color: var(--mobile-gold);
+  }
+
+  .mobile-era-map__next.is-urgent > .game-glyph {
+    color: var(--seal-bright);
+  }
+
+  .mobile-era-map__next strong,
+  .mobile-era-map__next p {
+    display: block;
+  }
+
+  .mobile-era-map__next strong {
+    margin-top: 1px;
+    font-family: var(--font-decree);
+    font-size: 13px;
+  }
+
+  .mobile-era-map__next p {
+    margin-top: 3px;
+    color: color-mix(in srgb, var(--mobile-ink) 62%, transparent);
+    font-family: var(--font-data);
+    font-size: 8px;
+    line-height: 1.45;
+  }
+
+  .mobile-era-map__past {
+    padding: 9px 10px;
+  }
+
+  .mobile-era-map__past summary {
+    color: color-mix(in srgb, var(--mobile-ink) 68%, transparent);
+    cursor: pointer;
+    font-family: var(--font-data);
+    font-size: 9px;
+  }
+
+  .mobile-era-map__past ol {
+    display: grid;
+    gap: 5px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mobile-era-map__past li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2px 7px;
+    border-top: 1px solid rgba(86, 69, 45, 0.14);
+    padding-top: 6px;
+  }
+
+  .mobile-era-map__past li > span {
+    color: var(--mobile-gold);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-era-map__past li > strong {
+    overflow: hidden;
+    font-family: var(--font-body);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-era-map__past li > em {
+    grid-column: 2;
+    color: color-mix(in srgb, var(--mobile-ink) 48%, transparent);
+    font-family: var(--font-data);
+    font-size: 7px;
+    font-style: normal;
+  }
+
+  .mobile-era-map__past li > em.is-rewarded {
+    color: var(--seal-bright);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-era-map__case-track i {
+    transition: none;
+  }
+}
