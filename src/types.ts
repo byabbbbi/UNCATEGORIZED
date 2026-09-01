@@ -112,6 +112,21 @@ export type GameMode = 'standard' | 'demo' | 'daily'
 
 export type TutorialStep = 0 | 1 | 2 | 3 | 'done'
 
+export interface ProclamationResult {
+  id: string
+  conceptName: string
+  conceptEmoji: string
+  pillarKey: PillarKey
+  stabilityBefore: number
+  stabilityAfter: number
+  damage: number
+  coherenceLoss: number
+  shardsGained: number
+  remainingHits: number
+  collapsed: boolean
+  rule: string | null
+}
+
 export interface FxState {
   rejectInstanceId: string | null
   sealFlash: boolean
@@ -127,6 +142,7 @@ export interface FxState {
   shardPop: number
   drawerHighlight: boolean
   shardFlights: ShardFlight[]
+  proclamationResult: ProclamationResult | null
 }
 
 export interface ShardFlight {

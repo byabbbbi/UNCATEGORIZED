@@ -667,6 +667,172 @@
   .mobile-altar-screen.is-striking .mobile-pillar.is-selected button {
     animation: pillar-strike 0.48s ease-out;
   }
+
+  .mobile-proclamation-result {
+    position: absolute;
+    z-index: 12;
+    right: calc(10px + env(safe-area-inset-right));
+    bottom: 90px;
+    left: calc(10px + env(safe-area-inset-left));
+    overflow: hidden;
+    border: 1px solid rgba(222, 183, 105, 0.72);
+    border-left: 4px solid var(--seal-bright);
+    border-radius: 8px;
+    background:
+      linear-gradient(145deg, rgba(188, 57, 41, 0.13), transparent 44%),
+      rgba(18, 22, 19, 0.97);
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, 0.56),
+      inset 0 0 26px rgba(214, 171, 84, 0.07);
+    color: var(--mobile-paper);
+    padding: 10px 12px 11px;
+  }
+
+  .mobile-proclamation-result.is-collapse {
+    border-color: var(--seal-light);
+    border-left-color: var(--mobile-gold-light);
+    background:
+      radial-gradient(circle at 50% 0, rgba(207, 161, 68, 0.2), transparent 50%),
+      linear-gradient(145deg, rgba(188, 57, 41, 0.24), transparent 50%),
+      rgba(18, 20, 18, 0.98);
+  }
+
+  .mobile-proclamation-result > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(220, 187, 124, 0.2);
+  }
+
+  .mobile-proclamation-result > header span {
+    color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+
+  .mobile-proclamation-result.is-collapse > header span {
+    color: var(--mobile-gold-light);
+  }
+
+  .mobile-proclamation-result > header button {
+    width: 44px;
+    height: 44px;
+    margin: -8px -7px -8px 0;
+    appearance: none;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(237, 228, 205, 0.68);
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .mobile-proclamation-result__verdict {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
+    padding: 9px 0 7px;
+    font-family: var(--font-decree);
+    font-size: 12px;
+  }
+
+  .mobile-proclamation-result__verdict span,
+  .mobile-proclamation-result__verdict strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-proclamation-result__verdict strong {
+    color: var(--mobile-gold-light);
+    font-family: var(--font-latin);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-align: right;
+  }
+
+  .mobile-proclamation-result__verdict i,
+  .mobile-proclamation-result__damage i {
+    color: var(--seal-light);
+    font-style: normal;
+  }
+
+  .mobile-proclamation-result__damage {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 7px 9px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.24);
+    font-family: var(--font-data);
+  }
+
+  .mobile-proclamation-result__damage span {
+    margin-right: auto;
+    color: rgba(237, 228, 205, 0.62);
+    font-size: 8px;
+  }
+
+  .mobile-proclamation-result__damage strong {
+    font-size: 14px;
+  }
+
+  .mobile-proclamation-result__damage em {
+    color: var(--seal-light);
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 700;
+  }
+
+  .mobile-proclamation-result__costs {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 6px 2px 0;
+    color: rgba(237, 228, 205, 0.64);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-proclamation-result__forecast {
+    margin: 7px 0 0;
+    color: var(--mobile-gold-light);
+    font-family: var(--font-decree);
+    font-size: 10px;
+    text-align: center;
+  }
+
+  .mobile-proclamation-result__rule {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(219, 181, 104, 0.28);
+  }
+
+  .mobile-proclamation-result__rule span,
+  .mobile-proclamation-result__rule small {
+    display: block;
+    color: var(--seal-light);
+    font-family: var(--font-data);
+    font-size: 8px;
+  }
+
+  .mobile-proclamation-result__rule strong {
+    display: block;
+    margin: 4px 0 6px;
+    color: var(--mobile-paper);
+    font-family: var(--font-decree);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .mobile-proclamation-result__rule small {
+    color: rgba(237, 228, 205, 0.52);
+  }
 }
 
 @keyframes altar-stage-strike {
@@ -694,5 +860,9 @@
   .mobile-altar-screen.is-striking .mobile-altar__stage,
   .mobile-altar-screen.is-striking .mobile-pillar.is-selected button {
     animation: none;
+  }
+
+  .mobile-proclamation-result {
+    transition: none;
   }
 }

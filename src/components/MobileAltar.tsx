@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { AnimatedNumber } from './AnimatedNumber'
 import { GameGlyph } from './GameGlyph'
 import {
@@ -143,6 +143,7 @@ export function MobileAltar() {
   const selectInstance = useGameStore((s) => s.selectInstance)
   const setTargetPillar = useGameStore((s) => s.setTargetPillar)
   const proclaimInstance = useGameStore((s) => s.proclaimInstance)
+  const clearProclamationResult = useGameStore((s) => s.clearProclamationResult)
   const targetListRef = useRef<HTMLUListElement>(null)
   const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holdCompleted = useRef(false)
@@ -222,6 +223,16 @@ export function MobileAltar() {
     setHoldHint(false)
     setReducedConfirm(false)
   }, [selectedInstanceId, targetPillar])
+
+  useEffect(() => {
+    const result = fx.proclamationResult
+    if (!result) return
+    const timer = window.setTimeout(
+      () => clearProclamationResult(result.id),
+      result.collapsed ? 5200 : 3200,
+    )
+    return () => window.clearTimeout(timer)
+  }, [fx.proclamationResult, clearProclamationResult])
 
   const clearHold = () => {
     if (holdRef.current) window.clearTimeout(holdRef.current)
@@ -391,6 +402,65 @@ export function MobileAltar() {
           </motion.button>
         </div>
       </footer>
+
+      <AnimatePresence>
+        {fx.proclamationResult && (
+          <motion.aside
+            key={fx.proclamationResult.id}
+            className={`mobile-proclamation-result${
+              fx.proclamationResult.collapsed ? ' is-collapse' : ''
+            }`}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.98 }}
+            role={fx.proclamationResult.collapsed ? 'alert' : 'status'}
+            aria-live={fx.proclamationResult.collapsed ? 'assertive' : 'polite'}
+          >
+            <header>
+              <span>{fx.proclamationResult.collapsed ? '비석 붕괴' : '선포 판정'}</span>
+              <button
+                type="button"
+                onClick={() => clearProclamationResult(fx.proclamationResult?.id)}
+                aria-label="선포 결과 닫기"
+              >
+                ×
+              </button>
+            </header>
+            <div className="mobile-proclamation-result__verdict">
+              <span>
+                {fx.proclamationResult.conceptEmoji}{' '}
+                {fx.proclamationResult.conceptName}
+              </span>
+              <i aria-hidden>→</i>
+              <strong>{PILLAR_LATIN[fx.proclamationResult.pillarKey]}</strong>
+            </div>
+            <div className="mobile-proclamation-result__damage">
+              <span>안정도</span>
+              <strong>{fx.proclamationResult.stabilityBefore.toFixed(1)}</strong>
+              <i aria-hidden>→</i>
+              <strong>{fx.proclamationResult.stabilityAfter.toFixed(1)}</strong>
+              <em>−{fx.proclamationResult.damage.toFixed(1)}</em>
+            </div>
+            <div className="mobile-proclamation-result__costs">
+              <span>정합성 −{fx.proclamationResult.coherenceLoss.toFixed(1)}</span>
+              {fx.proclamationResult.shardsGained > 0 && (
+                <span>파편 +{fx.proclamationResult.shardsGained}</span>
+              )}
+            </div>
+            {fx.proclamationResult.collapsed ? (
+              <div className="mobile-proclamation-result__rule">
+                <span>◈ 세계에 새겨진 규칙</span>
+                <strong>{fx.proclamationResult.rule}</strong>
+                <small>이제 모든 조합에 이 규칙이 개입합니다</small>
+              </div>
+            ) : (
+              <p className="mobile-proclamation-result__forecast">
+                현재 파괴력 기준, 예상 {fx.proclamationResult.remainingHits}회 후 붕괴
+              </p>
+            )}
+          </motion.aside>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

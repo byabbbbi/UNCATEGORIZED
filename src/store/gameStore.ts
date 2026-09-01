@@ -111,6 +111,7 @@ const emptyFx = (): FxState => ({
   shardPop: 0,
   drawerHighlight: false,
   shardFlights: [],
+  proclamationResult: null,
 })
 
 export interface GameStats {
@@ -177,6 +178,7 @@ export interface GameStore {
   openCodex: () => void
   closeCodex: () => void
   proclaimInstance: (instanceId: string) => void
+  clearProclamationResult: (id?: string) => void
   handleDrop: (
     instanceId: string,
     center: { x: number; y: number },
@@ -256,6 +258,7 @@ function createPlayState(opts?: {
   | 'openCodex'
   | 'closeCodex'
   | 'proclaimInstance'
+  | 'clearProclamationResult'
   | 'handleDrop'
   | 'endEra'
   | 'openVault'
@@ -780,6 +783,23 @@ function declareOnAltar(instanceId: string) {
   )
 
   const justCollapsed = pillar.stability > 0 && nextStability <= 0
+  const proclamationResult = {
+    id: uid('proclamation'),
+    conceptName: concept.name,
+    conceptEmoji: concept.emoji,
+    pillarKey,
+    stabilityBefore: pillar.stability,
+    stabilityAfter: nextStability,
+    damage: pillar.stability - nextStability,
+    coherenceLoss,
+    shardsGained,
+    remainingHits:
+      !justCollapsed && effectiveD > 0
+        ? Math.ceil(nextStability / effectiveD)
+        : 0,
+    collapsed: justCollapsed,
+    rule: justCollapsed ? COLLAPSE_RULES[pillarKey] : null,
+  }
   const godPhase = justCollapsed
     ? 'resign'
     : pillarPhase(nextStability) === 'sophistry'
@@ -813,6 +833,7 @@ function declareOnAltar(instanceId: string) {
       ...s.fx,
       sealFlash: true,
       screenShake: justCollapsed || reduceMotion() ? 0 : 1,
+      proclamationResult,
     },
   })
 
@@ -1543,6 +1564,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const tutorialStep = get().tutorialStep
     declareOnAltar(instanceId)
     if (tutorialStep === 3) markTutorial('done')
+  },
+
+  clearProclamationResult: (id) => {
+    set((s) => {
+      if (!s.fx.proclamationResult) return s
+      if (id && s.fx.proclamationResult.id !== id) return s
+      return { fx: { ...s.fx, proclamationResult: null } }
+    })
   },
 
   handleDrop: (instanceId, center, altar, allowProclamation = true) => {
