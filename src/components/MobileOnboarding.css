@@ -114,7 +114,7 @@
 
   .mobile-onboarding--combo {
     right: 14px;
-    bottom: calc(161px + env(safe-area-inset-bottom));
+    bottom: calc(326px + env(safe-area-inset-bottom));
     left: auto;
   }
 

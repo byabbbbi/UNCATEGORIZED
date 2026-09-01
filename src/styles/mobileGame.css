@@ -112,9 +112,14 @@
     color: var(--mobile-paper);
   }
 
+  .playfield > .canvas-board.is-mobile-sparse {
+    flex: 0 0 min(32dvh, 272px);
+    min-height: 228px;
+  }
+
   .playfield > .canvas-board.is-mobile-compact {
-    flex: 0 0 min(42dvh, 358px);
-    min-height: 210px;
+    flex: 0 0 min(36dvh, 310px);
+    min-height: 240px;
   }
 
   .playfield > .canvas-board.is-mobile-expanded {

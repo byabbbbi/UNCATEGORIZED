@@ -98,7 +98,7 @@
     grid-column: 3;
   }
 
-  .mobile-combo-tray > p {
+  .mobile-combo-tray__hint {
     flex: 0 0 76px;
     margin: 0;
     color: var(--ink-dim);
@@ -110,6 +110,10 @@
 
   .mobile-combo-tray.is-preparing {
     border-color: var(--seal);
+  }
+
+  .mobile-combo-tray:has(.mobile-combo-tray__rules > button.is-open) {
+    z-index: 250;
   }
 
   .mobile-combo-tray.is-preparing .mobile-combo-tray__slot {
@@ -134,10 +138,10 @@
 @media (max-width: 767px) {
   .mobile-combo-tray {
     position: relative;
-    flex: 0 0 82px;
-    min-height: 82px;
+    flex: 0 0 118px;
+    min-height: 118px;
     display: block;
-    padding: 6px 9px 18px;
+    padding: 50px 9px 18px;
     border: 0;
     border-radius: 8px;
     background:
@@ -150,27 +154,37 @@
   }
 
   .mobile-combo-tray::before {
-    content: '조합대';
+    content: none;
+  }
+
+  .mobile-combo-tray__head {
     position: absolute;
-    top: 4px;
-    left: 50%;
-    z-index: 2;
-    translate: -50% 0;
-    color: rgba(237, 228, 205, 0.45);
+    top: 3px;
+    right: 8px;
+    left: 8px;
+    z-index: 4;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .mobile-combo-tray__head > strong {
+    flex: none;
+    color: rgba(237, 228, 205, 0.62);
     font-family: var(--font-decree);
-    font-size: 7px;
-    letter-spacing: 0.16em;
-    pointer-events: none;
+    font-size: 9px;
+    letter-spacing: 0.12em;
   }
 
   .mobile-combo-tray__slots {
-    height: 56px;
+    height: 50px;
     grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
     gap: 7px;
   }
 
   .mobile-combo-tray__slot {
-    min-height: 52px;
+    min-height: 50px;
     gap: 6px;
     overflow: hidden;
     border: 0;
@@ -183,7 +197,7 @@
       inset 0 0 0 1px rgba(233, 220, 185, 0.13),
       0 1px rgba(255, 255, 255, 0.08);
     color: rgba(237, 228, 205, 0.38);
-    padding: 10px 8px 5px;
+    padding: 8px 8px 4px;
   }
 
   .mobile-combo-tray__slot.is-filled {
@@ -231,7 +245,7 @@
     opacity: 0.78;
   }
 
-  .mobile-combo-tray > p {
+  .mobile-combo-tray__hint {
     position: absolute;
     right: 0;
     bottom: 4px;
@@ -250,19 +264,18 @@
   }
 
   .mobile-combo-tray__rules {
-    position: absolute;
-    left: 8px;
-    bottom: calc(100% + 5px);
-    z-index: 90;
+    position: relative;
+    z-index: 5;
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 4px;
-    max-width: calc(100vw - 28px);
-    padding: 3px 5px;
-    border: 1px solid rgba(150, 45, 35, 0.58);
-    border-radius: 999px;
-    background: rgba(35, 38, 34, 0.9);
-    box-shadow: 0 4px 12px rgba(8, 9, 8, 0.32);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .mobile-combo-tray__rules-label {
@@ -274,8 +287,8 @@
   }
 
   .mobile-combo-tray__rules > button {
-    width: 25px;
-    height: 25px;
+    width: 44px;
+    height: 44px;
     flex: none;
     appearance: none;
     border: 1.5px solid var(--seal-bright);
@@ -283,7 +296,7 @@
     background: rgba(235, 220, 190, 0.09);
     color: var(--seal-light);
     font-family: var(--font-latin);
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 700;
     padding: 0;
   }
@@ -296,7 +309,8 @@
 
   .mobile-combo-tray__rule-tooltip {
     position: absolute;
-    left: 0;
+    right: 0;
+    left: auto;
     bottom: calc(100% + 7px);
     width: min(310px, calc(100vw - 32px));
     padding: 10px 36px 10px 11px;
@@ -325,14 +339,16 @@
 
   .mobile-combo-tray__rule-tooltip button {
     position: absolute;
-    top: 7px;
-    right: 7px;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
     appearance: none;
     border: 0;
     background: transparent;
     color: rgba(237, 228, 205, 0.64);
     font-family: var(--font-decree);
     font-size: 8px;
-    padding: 5px;
+    padding: 0;
   }
 }

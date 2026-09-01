@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
 import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
-import { MobileComboToast } from './components/MobileComboToast'
 import { MobileArchive } from './components/MobileArchive'
 import { MobileEraMap } from './components/MobileEraMap'
 import {
@@ -462,8 +461,6 @@ export default function App() {
               onMobileCardLongPress={openMobilePrecedent}
               onEndEra={requestEndEra}
             />
-            <MobileComboTray />
-            <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
             <div className="mobile-workshop-mark" aria-hidden>
               <span><GameGlyph kind="workshop" /></span>
               <div>
@@ -471,7 +468,8 @@ export default function App() {
                 <i>OFFICINA RERUM</i>
               </div>
             </div>
-            <MobileComboToast />
+            <MobileComboTray />
+            <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
             <StatStrip />
           </div>
           <MobileAltar />
