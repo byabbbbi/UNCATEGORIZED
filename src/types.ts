@@ -29,6 +29,10 @@ export interface Concept {
     contaminant: string | null
   }
   chronicle?: string
+  /** 보관소 회수품일 때의 원래 등급. 저장 데이터는 하위 호환을 위해 선택값으로 둔다. */
+  vaultGrade?: VaultGrade
+  /** 붕괴 규칙으로 이름이 변해도 도감에서 같은 회수품을 식별하는 키. */
+  vaultKey?: string
   deleted?: boolean
 }
 
