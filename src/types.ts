@@ -29,6 +29,10 @@ export interface Concept {
     contaminant: string | null
   }
   chronicle?: string
+  /** 보관소 회수품일 때의 원래 등급. 저장 데이터는 하위 호환을 위해 선택값으로 둔다. */
+  vaultGrade?: VaultGrade
+  /** 붕괴 규칙으로 이름이 변해도 도감에서 같은 회수품을 식별하는 키. */
+  vaultKey?: string
   deleted?: boolean
 }
 
@@ -76,10 +80,28 @@ export interface CanvasInstance {
   y: number
   processing?: boolean
   revealDiscovery?: boolean
-  /** 복제 직후 한 번만 재생하는 등장 애니메이션 */
+  /** 조합 결과가 나타날 때 한 번만 재생하는 등장 연출 */
   spawnPop?: boolean
   /** 동일 조합쌍이 세계 상태 때문에 다른 결과를 낸 경우 */
   rerecord?: { previous: string; current: string } | null
+  /** 결과에 개입한 활성 붕괴 규칙을 잠깐 찍어 보여준다. */
+  ruleStampKeys?: PillarKey[]
+}
+
+/** 모바일 조합 슬롯에 잠시 예약된 입력. 서랍 입력은 캔버스에 실체를 만들지 않는다. */
+export interface MobileComboSlot {
+  id: string
+  conceptId: string
+  source: 'canvas' | 'drawer'
+  instanceId?: string
+}
+
+export interface MobileComboToast {
+  id: string
+  first: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
+  second: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
+  result: Pick<Concept, 'id' | 'emoji' | 'name' | 'pillar' | 'deleted'>
+  isDiscovery: boolean
 }
 
 export type EndingKind = 'blank' | 'indistinct' | 'classified' | null
@@ -89,6 +111,21 @@ export type ScreenMode = 'title' | 'play' | 'ending'
 export type GameMode = 'standard' | 'demo' | 'daily'
 
 export type TutorialStep = 0 | 1 | 2 | 3 | 'done'
+
+export interface ProclamationResult {
+  id: string
+  conceptName: string
+  conceptEmoji: string
+  pillarKey: PillarKey
+  stabilityBefore: number
+  stabilityAfter: number
+  damage: number
+  coherenceLoss: number
+  shardsGained: number
+  remainingHits: number
+  collapsed: boolean
+  rule: string | null
+}
 
 export interface FxState {
   rejectInstanceId: string | null
@@ -105,6 +142,7 @@ export interface FxState {
   shardPop: number
   drawerHighlight: boolean
   shardFlights: ShardFlight[]
+  proclamationResult: ProclamationResult | null
 }
 
 export interface ShardFlight {

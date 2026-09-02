@@ -17,6 +17,8 @@
   gap: 4px;
   padding: 18px 8px 10px;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   cursor: grab;
   touch-action: none;
 }
@@ -103,6 +105,10 @@
   flex: none;
 }
 
+.index-card__game-glyph {
+  display: none;
+}
+
 .index-card__name {
   font-size: 13px;
   font-weight: 600;
@@ -124,4 +130,118 @@
   bottom: 5px;
   font-size: 10px;
   color: var(--gold);
+}
+
+@media (max-width: 767px) {
+  .index-card {
+    --card-accent: #77613b;
+    overflow: hidden;
+    border: 0;
+    border-radius: 8px 8px 10px 10px;
+    background:
+      radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.48), transparent 35%),
+      linear-gradient(155deg, rgba(255, 255, 255, 0.34), transparent 42%),
+      var(--mobile-paper);
+    box-shadow:
+      inset 0 0 0 1px rgba(99, 76, 44, 0.34),
+      inset 0 -5px 0 rgba(129, 105, 69, 0.11),
+      0 5px 0 #88765a,
+      0 9px 15px rgba(28, 25, 19, 0.3);
+    color: var(--mobile-ink);
+    padding: 19px 7px 11px;
+  }
+
+  .index-card::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid color-mix(in srgb, var(--card-accent) 55%, transparent);
+    border-radius: 5px 5px 7px 7px;
+    pointer-events: none;
+  }
+
+  .index-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 32px;
+    height: 4px;
+    translate: -50% 0;
+    border-radius: 0 0 6px 6px;
+    background: var(--card-accent);
+    opacity: 0.58;
+  }
+
+  .index-card[data-pillar='quality'],
+  .index-card[data-pillar='action'] { --card-accent: #a64b36; }
+  .index-card[data-pillar='time'],
+  .index-card[data-pillar='relation'] { --card-accent: #496f70; }
+  .index-card[data-pillar='quantity'],
+  .index-card[data-pillar='place'] { --card-accent: #5e6688; }
+  .index-card[data-pillar='state'] { --card-accent: #6f5c78; }
+
+  .index-card.is-selected {
+    outline: 0;
+    border: 0;
+    box-shadow:
+      inset 0 0 0 2px var(--seal-bright),
+      inset 0 -5px 0 rgba(129, 105, 69, 0.11),
+      0 5px 0 #8e463b,
+      0 0 0 3px rgba(187, 64, 48, 0.2),
+      0 11px 18px rgba(28, 25, 19, 0.34);
+  }
+
+  .index-card.is-discovery {
+    border: 0;
+    box-shadow:
+      inset 0 0 0 2px var(--mobile-gold-light),
+      0 5px 0 #927640,
+      0 0 18px rgba(215, 176, 93, 0.44),
+      0 10px 16px rgba(28, 25, 19, 0.28);
+  }
+
+  .index-card__emoji--platform {
+    display: none;
+  }
+
+  .index-card__game-glyph {
+    display: block;
+    width: 38px;
+    height: 38px;
+    color: var(--card-accent);
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55));
+  }
+
+  .index-card__name {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-decree);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .seal-tooltip {
+    top: 6px;
+    right: 6px;
+  }
+
+  .seal {
+    width: 22px;
+    height: 22px;
+    border-color: var(--seal-bright);
+    color: var(--seal-bright);
+    font-size: 9px;
+  }
+
+  .index-card__star {
+    right: 7px;
+    bottom: 6px;
+    color: var(--mobile-gold);
+  }
+
+  .index-card.is-deleted {
+    background: linear-gradient(145deg, #292d29, #111411);
+    color: rgba(236, 229, 211, 0.42);
+  }
 }

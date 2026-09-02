@@ -25,6 +25,21 @@ export const GACHA_KO: Record<VaultGrade, string> = {
   uncategorized: '미분류',
 }
 
+/** 보관소 회수 등급 확률. UI에 표시하는 값과 판정 값이 반드시 같아야 한다. */
+export const GACHA_ODDS: Record<VaultGrade, number> = {
+  registered: 55,
+  suspended: 30,
+  injudicable: 12,
+  uncategorized: 3,
+}
+
+export const VAULT_GRADE_ORDER: VaultGrade[] = [
+  'registered',
+  'suspended',
+  'injudicable',
+  'uncategorized',
+]
+
 /** 등급별 수기 풀 (API 없음) */
 export const GACHA_POOL: Record<VaultGrade, GachaEntry[]> = {
   registered: [
@@ -80,9 +95,12 @@ export const GACHA_POOL: Record<VaultGrade, GachaEntry[]> = {
 /** 등록됨 55% / 보류됨 30% / 판정불가 12% / 미분류 3% */
 export function rollVaultGrade(): VaultGrade {
   const r = Math.random()
-  if (r < 0.55) return 'registered'
-  if (r < 0.85) return 'suspended'
-  if (r < 0.97) return 'injudicable'
+  const registered = GACHA_ODDS.registered / 100
+  const suspended = registered + GACHA_ODDS.suspended / 100
+  const injudicable = suspended + GACHA_ODDS.injudicable / 100
+  if (r < registered) return 'registered'
+  if (r < suspended) return 'suspended'
+  if (r < injudicable) return 'injudicable'
   return 'uncategorized'
 }
 

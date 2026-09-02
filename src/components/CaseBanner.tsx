@@ -1,5 +1,6 @@
 import { caseDescription, caseProgressLabel } from '../data/caseFiles'
 import { useGameStore } from '../store/gameStore'
+import { GameGlyph } from './GameGlyph'
 import './CaseBanner.css'
 
 export function CaseBanner() {
@@ -10,6 +11,7 @@ export function CaseBanner() {
       className={`case-banner${eraCase.completed ? ' is-complete' : ''}`}
       aria-live="polite"
     >
+      <GameGlyph kind="case" className="case-banner__sigil" />
       <strong>제{eraCase.era}시대 사건</strong>
       <span>· {caseDescription(eraCase)}</span>
       <span className="case-banner__progress">{caseProgressLabel(eraCase)}</span>
