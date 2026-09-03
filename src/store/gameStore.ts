@@ -17,18 +17,13 @@ import {
 } from '../data/initial'
 import { COLLAPSE_RULE_EXAMPLES, COLLAPSE_RULES } from '../data/rules'
 import { createEraCase, createWorldSeed } from '../data/caseFiles'
-import { getDailyWorld, type DailyWorldConfig } from '../data/dailyWorld'
+import type { DailyWorldConfig } from '../data/dailyWorld'
 import { pickGodLine } from '../data/godlines'
 import {
   buildDemoConcepts,
   DEMO_SAVE,
   demoCollapsedRules,
 } from '../data/demoSave'
-import {
-  GACHA_POOL,
-  gradeBonusT,
-  rollVaultGrade,
-} from '../data/gachaPool'
 import { calcProclaimImpact } from '../game/formulas'
 import { getEraDMultiplier } from '../data/balance'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
@@ -1256,7 +1251,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(createPlayState({ demo: true }))
   },
 
-  startDaily: () => {
+  startDaily: async () => {
+    // 오늘의 세계는 선택한 시점에만 406개 조합표를 참조한다.
+    const { getDailyWorld } = await import('../data/dailyWorld')
     const daily = getDailyWorld()
     const loaded = loadDailyRun(daily.date)
     if (!loaded) {
@@ -1722,7 +1719,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     })),
 
-  pullVault: () => {
+  pullVault: async () => {
     const s = get()
     if (s.shards < 10 || s.fx.inputLocked) {
       set({ message: '파편이 부족합니다 (10 필요)' })
@@ -1730,6 +1727,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
+    // 보관소 풀은 실제 회수를 시도할 때만 필요하다.
+    const { GACHA_POOL, gradeBonusT, rollVaultGrade } = await import(
+      '../data/gachaPool'
+    )
     const grade: VaultGrade = rollVaultGrade()
     const pool = GACHA_POOL[grade]
     const pick = pool[Math.floor(Math.random() * pool.length)]

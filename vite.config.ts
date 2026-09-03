@@ -5,4 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/UNCATEGORIZED/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/src/data/combos.ts')) return 'hard-table'
+          if (id.includes('/src/data/gachaPool.ts')) return 'vault-data'
+        },
+      },
+    },
+  },
 })

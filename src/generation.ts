@@ -1,10 +1,9 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 import PRELOAD from './data/preload.json'
-import { HARD_TABLE, type HardEntry } from './data/combos'
+import type { HardEntry } from './data/combos'
 import { COLLAPSE_RULES } from './data/rules'
 import { PROXY_URL } from './config'
 import { calcT } from './game/formulas'
-import { isBadName } from './utils/nameQuality'
 import {
   compactNameLength,
   limitConceptName,
@@ -141,6 +140,9 @@ export async function generate(
 
   // 1. 하드코딩 테이블 (기둥이 무너지기 전까지 오염 여부와 무관)
   if (w.collapsed.length === 0) {
+    // 406개 조합표는 첫 조합에서만 내려받는다. 타이틀·메뉴 진입은
+    // 이 데이터에 의존하지 않으므로 첫 화면의 파싱 비용을 줄일 수 있다.
+    const { HARD_TABLE } = await import('./data/combos')
     const hard = HARD_TABLE[pairKey(a.name, b.name)]
     if (hard) {
       const base = hardResult(hard)
@@ -178,6 +180,9 @@ export async function generate(
       qualityCollapsed: w.collapsed.includes('quality'),
       relationCollapsed: w.collapsed.includes('relation'),
     }
+    // 이름 품질 검사는 조합 API 경로에서만 필요하며, 내부의 대형 명사표도
+    // 함께 지연 로딩한다.
+    const { isBadName } = await import('./utils/nameQuality')
     let raw = await callProxy(buildMessages(a, b, w), 20000)
     if (isRefusal(raw)) {
       const del = deletedConcept()

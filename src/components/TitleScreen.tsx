@@ -1,5 +1,4 @@
-import { motion } from 'motion/react'
-import { formatDailyDate, getDailyWorld } from '../data/dailyWorld'
+import { useEffect, useState } from 'react'
 import { hasSavedRun } from '../persist/runSave'
 import { useGameStore } from '../store/gameStore'
 import './TitleScreen.css'
@@ -10,16 +9,25 @@ export function TitleScreen() {
   const startDemo = useGameStore((s) => s.startDemo)
   const startDaily = useGameStore((s) => s.startDaily)
   const canContinue = hasSavedRun()
-  const daily = getDailyWorld()
+  const [dailyLabel, setDailyLabel] = useState('오늘의 세계 준비 중')
+
+  useEffect(() => {
+    let active = true
+    void import('../data/dailyWorld').then(({ formatDailyDate, getDailyWorld }) => {
+      if (!active) return
+      const daily = getDailyWorld()
+      setDailyLabel(
+        `오늘의 세계 · ${formatDailyDate(daily.date)} · 「${daily.contaminant}」에 감염된 세계`,
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <div className="title-screen">
-      <motion.div
-        className="title-screen__panel"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55 }}
-      >
+      <div className="title-screen__panel">
         <h1 className="title-screen__brand">UNCATEGORIZED</h1>
         <p className="title-screen__latin">RES SINE CATEGORIA</p>
         <div className="title-screen__actions">
@@ -43,11 +51,10 @@ export function TitleScreen() {
             className="title-screen__btn title-screen__btn--daily"
             onClick={startDaily}
           >
-            오늘의 세계 · {formatDailyDate(daily.date)} · 「{daily.contaminant}」에
-            감염된 세계
+            {dailyLabel}
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }

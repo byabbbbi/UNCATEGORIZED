@@ -1,22 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasBoard } from './components/CanvasBoard'
-import { MobileAltar } from './components/MobileAltar'
 import { MobileComboTray } from './components/MobileComboTray'
-import { MobileArchive } from './components/MobileArchive'
-import { MobileEraMap } from './components/MobileEraMap'
-import {
-  MobileOnboarding,
-  type MobileOnboardingStep,
-} from './components/MobileOnboarding'
+import type { MobileOnboardingStep } from './components/MobileOnboarding'
 import { ConceptDrawer } from './components/ConceptDrawer'
-import { SidePanel } from './components/SidePanel'
 import { StatStrip } from './components/StatStrip'
 import { CaseBanner } from './components/CaseBanner'
-import { VaultModal } from './components/VaultModal'
-import { CodexModal } from './components/CodexModal'
 import { TitleScreen } from './components/TitleScreen'
-import { EndingScreen } from './components/EndingScreen'
 import { ShardFlights } from './components/ShardFlights'
 import { DebugBadge } from './components/DebugBadge'
 import { AnimatedNumber } from './components/AnimatedNumber'
@@ -33,6 +23,31 @@ import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
 import './App.css'
 import './styles/mobileFeedback.css'
 import './styles/mobileGame.css'
+
+const MobileAltar = lazy(() =>
+  import('./components/MobileAltar').then(({ MobileAltar }) => ({ default: MobileAltar })),
+)
+const MobileArchive = lazy(() =>
+  import('./components/MobileArchive').then(({ MobileArchive }) => ({ default: MobileArchive })),
+)
+const MobileEraMap = lazy(() =>
+  import('./components/MobileEraMap').then(({ MobileEraMap }) => ({ default: MobileEraMap })),
+)
+const MobileOnboarding = lazy(() =>
+  import('./components/MobileOnboarding').then(({ MobileOnboarding }) => ({ default: MobileOnboarding })),
+)
+const SidePanel = lazy(() =>
+  import('./components/SidePanel').then(({ SidePanel }) => ({ default: SidePanel })),
+)
+const VaultModal = lazy(() =>
+  import('./components/VaultModal').then(({ VaultModal }) => ({ default: VaultModal })),
+)
+const CodexModal = lazy(() =>
+  import('./components/CodexModal').then(({ CodexModal }) => ({ default: CodexModal })),
+)
+const EndingScreen = lazy(() =>
+  import('./components/EndingScreen').then(({ EndingScreen }) => ({ default: EndingScreen })),
+)
 
 type MobileSheet = 'eras' | 'rules' | 'chronicle'
 type MobileView = 'workshop' | 'altar' | 'archive'
@@ -100,6 +115,11 @@ export default function App() {
   const hapticsAvailable = supportsHaptics()
   const [mobileOnboarding, setMobileOnboarding] = useState<MobileOnboardingStep>(
     initialMobileOnboarding,
+  )
+  const [desktopMode, setDesktopMode] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 768px)').matches,
   )
   const mobileHistoryIgnorePop = useRef(false)
 
@@ -239,6 +259,7 @@ export default function App() {
   useEffect(() => {
     const query = window.matchMedia('(min-width: 768px)')
     const closeMobileOverlays = () => {
+      setDesktopMode(query.matches)
       if (query.matches) {
         setMobileSheet(null)
         setMobileView('workshop')
@@ -472,12 +493,23 @@ export default function App() {
             <ConceptDrawer onMobileOpenCodex={openMobileCodex} />
             <StatStrip />
           </div>
-          <MobileAltar />
-          <SidePanel />
-          <MobileArchive
-            onOpenCodex={openMobileCodex}
-            onOpenSheet={openMobileSheet}
-          />
+          {desktopMode ? (
+            <Suspense fallback={null}>
+              <SidePanel />
+            </Suspense>
+          ) : mobileView === 'altar' ? (
+            <Suspense fallback={null}>
+              <MobileAltar />
+            </Suspense>
+          ) : null}
+          {!desktopMode && mobileView === 'archive' && (
+            <Suspense fallback={null}>
+              <MobileArchive
+                onOpenCodex={openMobileCodex}
+                onOpenSheet={openMobileSheet}
+              />
+            </Suspense>
+          )}
           {remainingDeclares === 0 && (
             <button
               type="button"
@@ -564,7 +596,13 @@ export default function App() {
                   ✕
                 </button>
               </header>
-              {mobileSheet === 'eras' ? <MobileEraMap /> : <SidePanel view={mobileSheet} />}
+              <Suspense fallback={null}>
+                {mobileSheet === 'eras' ? (
+                  <MobileEraMap />
+                ) : (
+                  <SidePanel view={mobileSheet} />
+                )}
+              </Suspense>
             </motion.section>
           </motion.div>
         )}
@@ -757,17 +795,31 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <VaultModal />
-      <CodexModal
-        onMobileClose={closeMobileCodex}
-        onMobileSpawn={finishMobileCodexSpawn}
-      />
+      {fx.vaultOpen && (
+        <Suspense fallback={null}>
+          <VaultModal />
+        </Suspense>
+      )}
+      {codexOpen && (
+        <Suspense fallback={null}>
+          <CodexModal
+            onMobileClose={closeMobileCodex}
+            onMobileSpawn={finishMobileCodexSpawn}
+          />
+        </Suspense>
+      )}
       {gameMode !== 'demo' &&
         mobileView !== 'archive' &&
         !(mobileView === 'altar' && mobileOnboarding === 'combo') && (
-          <MobileOnboarding step={mobileOnboarding} />
+          <Suspense fallback={null}>
+            <MobileOnboarding step={mobileOnboarding} />
+          </Suspense>
         )}
-      {screen === 'ending' && <EndingScreen />}
+      {screen === 'ending' && (
+        <Suspense fallback={null}>
+          <EndingScreen />
+        </Suspense>
+      )}
       <DebugBadge />
     </div>
   )
