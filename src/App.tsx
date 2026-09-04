@@ -20,6 +20,7 @@ import {
   supportsHaptics,
 } from './mobileFeedback'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from './data/initial'
+import { CASE_SHARD_REWARD, VAULT_SINGLE_COST } from './data/vaultEconomy'
 import './App.css'
 import './styles/mobileFeedback.css'
 import './styles/mobileGame.css'
@@ -523,7 +524,7 @@ export default function App() {
                 <small>
                   {eraCaseWillReward
                     ? '세계를 정산하고 다음 시대로'
-                    : '사건 미완료 · 파편 3개 포기'}
+                    : `사건 미완료 · 파편 ${CASE_SHARD_REWARD}개 포기`}
                 </small>
               </span>
             </button>
@@ -558,7 +559,7 @@ export default function App() {
             >
               <GameGlyph kind="codex" />
               <span className="mobile-tabbar__label">기록소</span>
-              {shards >= 10 && <b aria-label="보관소 회수 가능">◈</b>}
+              {shards >= VAULT_SINGLE_COST && <b aria-label="보관소 회수 가능">◈</b>}
             </button>
           </nav>
         </div>
@@ -761,7 +762,7 @@ export default function App() {
                   ? '타이틀로 돌아갑니다. 진행 상황은 저장됩니다.'
                   : confirmation === 'reset'
                     ? '이 세계의 모든 기록이 사라집니다. 계속할까요?'
-                    : `제${era}시대 사건이 미완료입니다. 파편 3개를 포기합니다.`}
+                    : `제${era}시대 사건이 미완료입니다. 파편 ${CASE_SHARD_REWARD}개를 포기합니다.`}
               </p>
               <div className="confirm-reset__actions">
                 <button

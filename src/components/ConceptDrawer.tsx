@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import type { Concept } from '../types'
+import { VAULT_SINGLE_COST } from '../data/vaultEconomy'
 import { GameGlyph } from './GameGlyph'
 import './ConceptDrawer.css'
 
@@ -146,8 +147,8 @@ export function ConceptDrawer({
   const queueMobileComboConcept = useGameStore((s) => s.queueMobileComboConcept)
   const railRef = useRef<HTMLDivElement>(null)
 
-  const filled = Math.min(shards, 10)
-  const progress = filled / 10
+  const filled = Math.min(shards, VAULT_SINGLE_COST)
+  const progress = filled / VAULT_SINGLE_COST
   const offset = RING_C * (1 - progress)
 
   useEffect(() => {
@@ -206,10 +207,10 @@ export function ConceptDrawer({
 
         <button
           type="button"
-          className={`drawer__vault${shards >= 10 ? ' is-ready' : ''}`}
+          className={`drawer__vault${shards >= VAULT_SINGLE_COST ? ' is-ready' : ''}`}
           onClick={openVault}
-          title={`분실물 보관소 (${filled}/10)`}
-          aria-label={`분실물 보관소 파편 ${filled} / 10`}
+          title={`분실물 보관소 (${filled}/${VAULT_SINGLE_COST})`}
+          aria-label={`분실물 보관소 파편 ${filled} / ${VAULT_SINGLE_COST}`}
         >
           <svg className="drawer__vault-ring" viewBox="0 0 64 64" aria-hidden>
             <circle
@@ -233,9 +234,9 @@ export function ConceptDrawer({
           <GameGlyph kind="vault" className="drawer__vault-back" />
           <span className="drawer__vault-wax" aria-hidden />
           <span className="drawer__vault-count" aria-hidden>
-            {filled}/10
+            {filled}/{VAULT_SINGLE_COST}
           </span>
-          {shards >= 10 && <span className="drawer__pulse" />}
+          {shards >= VAULT_SINGLE_COST && <span className="drawer__pulse" />}
         </button>
       </div>
     </div>

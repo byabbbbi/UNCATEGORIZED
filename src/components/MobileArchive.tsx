@@ -1,5 +1,6 @@
 import { GameGlyph } from './GameGlyph'
 import { useGameStore } from '../store/gameStore'
+import { VAULT_SINGLE_COST } from '../data/vaultEconomy'
 import './MobileArchive.css'
 
 type ArchiveSheet = 'eras' | 'rules' | 'chronicle'
@@ -19,7 +20,7 @@ export function MobileArchive({
   const openVault = useGameStore((s) => s.openVault)
 
   const latestRecord = chronicle.at(-1)?.text
-  const nextRecovery = Math.max(0, 10 - shards)
+  const nextRecovery = Math.max(0, VAULT_SINGLE_COST - shards)
   const recoveredVaultKeys = new Set(
     concepts.flatMap((concept) => (concept.vaultKey ? [concept.vaultKey] : [])),
   )
@@ -107,7 +108,7 @@ export function MobileArchive({
 
         <button
           type="button"
-          className={`mobile-archive__entry mobile-archive__entry--vault${shards >= 10 ? ' is-ready' : ''}`}
+          className={`mobile-archive__entry mobile-archive__entry--vault${shards >= VAULT_SINGLE_COST ? ' is-ready' : ''}`}
           onClick={openVault}
         >
           <span className="mobile-archive__entry-icon" aria-hidden>
@@ -116,7 +117,7 @@ export function MobileArchive({
           <span className="mobile-archive__entry-copy">
             <strong>분실물 보관소</strong>
             <span>
-              {shards >= 10
+              {shards >= VAULT_SINGLE_COST
                 ? '회수할 개념이 준비되었습니다.'
                 : `회수까지 파편 ${nextRecovery}개가 더 필요합니다.`}
             </span>
@@ -124,11 +125,11 @@ export function MobileArchive({
               회수 도감 {recoveredVaultKeys.size}/40
               {legacyVaultRecoveries > 0 ? ` · 이전 회수 ${legacyVaultRecoveries}건` : ''}
             </small>
-            <i aria-label={`파편 ${Math.min(shards, 10)} / 10`}>
-              <b style={{ width: `${Math.min(100, shards * 10)}%` }} />
+            <i aria-label={`파편 ${Math.min(shards, VAULT_SINGLE_COST)} / ${VAULT_SINGLE_COST}`}>
+              <b style={{ width: `${Math.min(100, (shards / VAULT_SINGLE_COST) * 100)}%` }} />
             </i>
           </span>
-          <em>{Math.min(shards, 10)}/10</em>
+          <em>{Math.min(shards, VAULT_SINGLE_COST)}/{VAULT_SINGLE_COST}</em>
         </button>
       </div>
 

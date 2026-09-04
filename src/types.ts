@@ -73,6 +73,16 @@ export type VaultGrade =
   | 'injudicable'
   | 'uncategorized'
 
+export interface VaultReveal {
+  conceptId: string
+  grade: VaultGrade
+}
+
+export interface VaultPullSummary {
+  count: number
+  gradeCounts: Record<VaultGrade, number>
+}
+
 export interface CanvasInstance {
   instanceId: string
   conceptId: string
@@ -135,7 +145,13 @@ export interface FxState {
   typingRule: string | null
   unclassifiedFx: boolean
   vaultOpen: boolean
-  vaultReveal: null | { conceptId: string; grade: VaultGrade }
+  /** 보관소 데이터 청크를 불러오는 짧은 구간의 이중 입력 방지용 잠금. */
+  vaultLoading: boolean
+  vaultReveal: VaultReveal | null
+  /** 10연 회수에서 현재 카드 이후에 기다리고 있는 결과들. */
+  vaultReveals: VaultReveal[]
+  vaultRevealIndex: number
+  vaultSummary: VaultPullSummary | null
   godLine: string | null
   inputLocked: boolean
   discoverPop: number
@@ -169,10 +185,10 @@ export function sealOf(concept: Concept): PillarKey {
 }
 
 export function gradeDelayMs(grade: VaultGrade): number {
-  if (grade === 'uncategorized') return 2200
-  if (grade === 'injudicable') return 1400
-  if (grade === 'suspended') return 900
-  return 600
+  if (grade === 'uncategorized') return 1800
+  if (grade === 'injudicable') return 1000
+  if (grade === 'suspended') return 600
+  return 400
 }
 
 /** 유럽식 열람 도장 약호 */

@@ -7,7 +7,7 @@ import { firstGrapheme } from '../utils/emoji'
 export const DEMO_SAVE = {
   era: 4,
   coherence: 62,
-  shards: 10,
+  shards: 25,
   declaresLeft: 3,
   collapsed: ['quantity', 'quality'] as PillarKey[],
   contaminantCounts: { 먼지: 3 } as Record<string, number>,
