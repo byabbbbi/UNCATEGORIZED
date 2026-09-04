@@ -26,6 +26,13 @@ import {
 } from '../data/demoSave'
 import { calcProclaimImpact } from '../game/formulas'
 import { getEraDMultiplier } from '../data/balance'
+import {
+  CASE_SHARD_REWARD,
+  REWARDED_AD_SHARDS,
+  VAULT_SINGLE_COST,
+  VAULT_TEN_COST,
+  VAULT_TEN_COUNT,
+} from '../data/vaultEconomy'
 import { isMuted, sfx, toggleMute as flipMute } from '../sfx'
 import { vibrateMobile } from '../mobileFeedback'
 import { josa } from '../utils/josa'
@@ -53,13 +60,14 @@ import type {
   ScreenMode,
   TutorialStep,
   VaultGrade,
+  VaultReveal,
+  VaultPullSummary,
 } from '../types'
 import {
   ALTAR_R,
   CARD_H,
   CARD_W,
   COMBINE_RADIUS,
-  gradeDelayMs,
   pillarPhase,
 } from '../types'
 
@@ -99,7 +107,11 @@ const emptyFx = (): FxState => ({
   typingRule: null,
   unclassifiedFx: false,
   vaultOpen: false,
+  vaultLoading: false,
   vaultReveal: null,
+  vaultReveals: [],
+  vaultRevealIndex: 0,
+  vaultSummary: null,
   godLine: null,
   inputLocked: false,
   discoverPop: 0,
@@ -183,7 +195,10 @@ export interface GameStore {
   endEra: () => void
   openVault: () => void
   closeVault: () => void
-  pullVault: () => void
+  pullVault: (count?: 1 | 10) => Promise<void>
+  advanceVaultReveal: () => void
+  skipVaultReveals: () => void
+  grantRewardedAdShards: () => void
   clearTypingRule: () => void
   clearGodLine: () => void
   dismissTutorial: () => void
@@ -259,6 +274,9 @@ function createPlayState(opts?: {
   | 'openVault'
   | 'closeVault'
   | 'pullVault'
+  | 'advanceVaultReveal'
+  | 'skipVaultReveals'
+  | 'grantRewardedAdShards'
   | 'clearTypingRule'
   | 'clearGodLine'
   | 'dismissTutorial'
@@ -1140,6 +1158,79 @@ function beginCombination(
     )
 }
 
+function vaultPullSummary(reveals: VaultReveal[]): VaultPullSummary {
+  const gradeCounts: Record<VaultGrade, number> = {
+    registered: 0,
+    suspended: 0,
+    injudicable: 0,
+    uncategorized: 0,
+  }
+  for (const reveal of reveals) gradeCounts[reveal.grade] += 1
+  return { count: reveals.length, gradeCounts }
+}
+
+/** 미분류 회수품의 기존 페널티를 한 장씩, 공개가 끝나는 순간 적용한다. */
+function applyVaultUnclassifiedPenalty() {
+  const current = useGameStore.getState()
+  const alive = current.pillars.filter((pillar) => pillar.stability > 0)
+  if (alive.length === 0) return
+  const target = alive[Math.floor(Math.random() * alive.length)]
+  const nextStability = Math.max(0, target.stability - 15)
+  useGameStore.setState({
+    pillars: current.pillars.map((pillar) =>
+      pillar.key === target.key ? { ...pillar, stability: nextStability } : pillar,
+    ),
+  })
+  if (target.stability > 0 && nextStability <= 0) {
+    runCollapseSequence(target.key)
+  }
+}
+
+function finishVaultReveals(showSummary: boolean) {
+  const current = useGameStore.getState()
+  const reveals = current.fx.vaultReveals
+  const lastReveal = reveals.at(-1)
+  if (!lastReveal) return
+  const lastConcept = current.concepts.find(
+    (concept) => concept.id === lastReveal.conceptId,
+  )
+  if (!lastConcept) return
+
+  const instance: CanvasInstance = {
+    instanceId: uid('i'),
+    conceptId: lastConcept.id,
+    x: 200,
+    y: 140,
+  }
+  const history = reveals
+    .map((reveal) => current.concepts.find((concept) => concept.id === reveal.conceptId))
+    .filter((concept): concept is Concept => !!concept)
+    .map((concept) => entry(current.era, concept.chronicle ?? `보관소에서 ${concept.name}을 회수했다.`))
+
+  useGameStore.setState((state) => ({
+    instances: [...state.instances, instance],
+    selectedInstanceId: instance.instanceId,
+    hoverConceptId: lastConcept.id,
+    message:
+      reveals.length === VAULT_TEN_COUNT
+        ? '10연 회수 완료 · 결과 대장을 확인하세요'
+        : `회수: ${lastConcept.emoji} ${lastConcept.name}`,
+    chronicle: [...state.chronicle, ...history],
+    fx: {
+      ...state.fx,
+      vaultOpen: showSummary,
+      vaultReveal: null,
+      vaultReveals: showSummary ? reveals : [],
+      vaultRevealIndex: reveals.length,
+      vaultSummary: showSummary ? vaultPullSummary(reveals) : null,
+      unclassifiedFx: false,
+    },
+  }))
+
+  if (lastReveal.grade === 'uncategorized') sfx.discover()
+  else sfx.drop()
+}
+
 function combineAt(
   aId: string,
   bId: string,
@@ -1635,12 +1726,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       eraCase: settledCase,
-      shards: s.shards + (rewarded ? 3 : 0),
+      shards: s.shards + (rewarded ? CASE_SHARD_REWARD : 0),
       chronicle: settledChronicle,
       mobileComboSlots: [null, null],
       mobileComboPreparing: false,
       message: noCollapseJustCompleted
-        ? `제${s.era}시대 사건 종결 · 파편 +3`
+        ? `제${s.era}시대 사건 종결 · 파편 +${CASE_SHARD_REWARD}`
         : s.message,
       fx: {
         ...s.fx,
@@ -1714,120 +1805,145 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fx: {
         ...s.fx,
         vaultOpen: false,
+        vaultLoading: false,
         vaultReveal: null,
+        vaultReveals: [],
+        vaultRevealIndex: 0,
+        vaultSummary: null,
         unclassifiedFx: false,
       },
     })),
 
-  pullVault: async () => {
+  pullVault: async (count: 1 | 10 = 1) => {
     const s = get()
-    if (s.shards < 10 || s.fx.inputLocked) {
-      set({ message: '파편이 부족합니다 (10 필요)' })
+    const isTenPull = count === VAULT_TEN_COUNT
+    const cost = isTenPull ? VAULT_TEN_COST : VAULT_SINGLE_COST
+    if (s.shards < cost || s.fx.inputLocked || s.fx.vaultLoading || s.fx.vaultReveal || s.fx.vaultSummary) {
+      set({ message: `파편이 부족합니다 (${cost} 필요)` })
       sfx.reject()
       return
     }
 
+    set((state) => ({ fx: { ...state.fx, vaultLoading: true } }))
+
     // 보관소 풀은 실제 회수를 시도할 때만 필요하다.
-    const { GACHA_POOL, gradeBonusT, rollVaultGrade } = await import(
-      '../data/gachaPool'
-    )
-    const grade: VaultGrade = rollVaultGrade()
-    const pool = GACHA_POOL[grade]
-    const pick = pool[Math.floor(Math.random() * pool.length)]
-    const bonus = gradeBonusT(grade)
-
-    let name = pick.name
-    if (s.collapsed.length >= 2) {
-      name = applyCollapseName(name, s.collapsed, hashStr(name + grade))
+    let GACHA_POOL: typeof import('../data/gachaPool').GACHA_POOL
+    let gradeBonusT: typeof import('../data/gachaPool').gradeBonusT
+    let rollVaultGrade: typeof import('../data/gachaPool').rollVaultGrade
+    try {
+      ({ GACHA_POOL, gradeBonusT, rollVaultGrade } = await import('../data/gachaPool'))
+    } catch {
+      set((state) => ({
+        message: '보관소 기록을 불러오지 못했습니다',
+        fx: { ...state.fx, vaultLoading: false },
+      }))
+      sfx.reject()
+      return
+    }
+    const grades: VaultGrade[] = Array.from({ length: count }, () => rollVaultGrade())
+    // 확률 테이블은 그대로 유지한다. 10번의 판정이 모두 낮은 등급일 때만 마지막을 승격한다.
+    if (
+      isTenPull &&
+      !grades.some((grade) => grade === 'injudicable' || grade === 'uncategorized')
+    ) {
+      grades[grades.length - 1] = 'injudicable'
     }
 
-    const scale = bonus > 0 ? 1 + bonus / 100 : 1
-    const vaultChronicle = `보관소에서 ${name}${josa(name, ['을', '를'])} 회수했다.`
-    const concept: Concept = {
-      id: newConceptId(name),
-      name,
-      emoji: firstGrapheme(pick.emoji),
-      chaos: Math.min(100, Math.round(pick.chaos * scale)),
-      plausibility: Math.min(100, Math.round(pick.plausibility * scale)),
-      narrative: Math.min(100, Math.round(pick.narrative * scale)),
-      contagion: Math.min(100, Math.round(pick.contagion * scale)),
-      depth: grade === 'registered' ? 0 : grade === 'suspended' ? 2 : grade === 'injudicable' ? 3 : 4,
-      pillar: pick.pillar,
-      contaminant: pick.contaminant,
-      bornAt: {
-        era: s.era,
-        collapsed: s.collapsed.length,
-        contaminant:
-          activeContaminants(s.contaminantCounts).sort().join(' · ') || null,
-      },
-      chronicle: vaultChronicle,
-      vaultGrade: grade,
-      vaultKey: `${grade}:${pick.name}`,
-    }
+    const concepts: Concept[] = grades.map((grade) => {
+      const pool = GACHA_POOL[grade]
+      const pick = pool[Math.floor(Math.random() * pool.length)]
+      const bonus = gradeBonusT(grade)
+      let name = pick.name
+      if (s.collapsed.length >= 2) {
+        name = applyCollapseName(name, s.collapsed, hashStr(name + grade))
+      }
+      const scale = bonus > 0 ? 1 + bonus / 100 : 1
+      return {
+        id: newConceptId(name),
+        name,
+        emoji: firstGrapheme(pick.emoji),
+        chaos: Math.min(100, Math.round(pick.chaos * scale)),
+        plausibility: Math.min(100, Math.round(pick.plausibility * scale)),
+        narrative: Math.min(100, Math.round(pick.narrative * scale)),
+        contagion: Math.min(100, Math.round(pick.contagion * scale)),
+        depth: grade === 'registered' ? 0 : grade === 'suspended' ? 2 : grade === 'injudicable' ? 3 : 4,
+        pillar: pick.pillar,
+        contaminant: pick.contaminant,
+        bornAt: {
+          era: s.era,
+          collapsed: s.collapsed.length,
+          contaminant:
+            activeContaminants(s.contaminantCounts).sort().join(' · ') || null,
+        },
+        chronicle: `보관소에서 ${name}${josa(name, ['을', '를'])} 회수했다.`,
+        vaultGrade: grade,
+        vaultKey: `${grade}:${pick.name}`,
+      }
+    })
+    const reveals: VaultReveal[] = concepts.map((concept, index) => ({
+      conceptId: concept.id,
+      grade: grades[index],
+    }))
 
     sfx.gacha()
     set({
-      shards: s.shards - 10,
-      concepts: [...s.concepts, concept],
-      discoveredIds: [...s.discoveredIds, concept.id],
-      stats: { ...s.stats, discoveries: s.stats.discoveries + 1 },
+      shards: s.shards - cost,
+      concepts: [...s.concepts, ...concepts],
+      discoveredIds: [...s.discoveredIds, ...concepts.map((concept) => concept.id)],
+      stats: { ...s.stats, discoveries: s.stats.discoveries + concepts.length },
       fx: {
         ...s.fx,
-        vaultReveal: { conceptId: concept.id, grade },
-        unclassifiedFx: grade === 'uncategorized',
+        vaultLoading: false,
+        vaultReveal: reveals[0],
+        vaultReveals: reveals,
+        vaultRevealIndex: 0,
+        vaultSummary: null,
+        unclassifiedFx: reveals[0].grade === 'uncategorized',
         discoverPop: s.fx.discoverPop + 1,
       },
     })
+  },
 
-    // 미분류: 생존 기둥 하나 −15
-    if (grade === 'uncategorized') {
-      window.setTimeout(() => {
-        const cur = get()
-        const alive = cur.pillars.filter((p) => p.stability > 0)
-        if (alive.length === 0) return
-        const target = alive[Math.floor(Math.random() * alive.length)]
-        const nextStability = Math.max(0, target.stability - 15)
-        const pillars = cur.pillars.map((p) =>
-          p.key === target.key ? { ...p, stability: nextStability } : p,
-        )
-        set({ pillars })
-        if (target.stability > 0 && nextStability <= 0) {
-          runCollapseSequence(target.key)
-        }
-      }, gradeDelayMs(grade) - 200)
+  advanceVaultReveal: () => {
+    const current = get()
+    const reveal = current.fx.vaultReveal
+    if (!reveal) return
+
+    if (reveal.grade === 'uncategorized') applyVaultUnclassifiedPenalty()
+    const nextIndex = current.fx.vaultRevealIndex + 1
+    const next = current.fx.vaultReveals[nextIndex]
+    if (!next) {
+      finishVaultReveals(current.fx.vaultReveals.length === VAULT_TEN_COUNT)
+      return
     }
 
-    window.setTimeout(() => {
-      const cur = get()
-      const inst: CanvasInstance = {
-        instanceId: uid('i'),
-        conceptId: concept.id,
-        x: 200,
-        y: 140,
-      }
-      set({
-        instances: [...cur.instances, inst],
-        selectedInstanceId: inst.instanceId,
-        hoverConceptId: concept.id,
-        message: `회수: ${concept.emoji} ${concept.name}`,
-        chronicle: [
-          ...cur.chronicle,
-          entry(
-            cur.era,
-            vaultChronicle,
-          ),
-        ],
-        fx: {
-          ...get().fx,
-          vaultReveal: null,
-          vaultOpen: false,
-          unclassifiedFx: false,
-        },
-      })
-      if (grade === 'uncategorized') sfx.discover()
-      else sfx.drop()
-    }, gradeDelayMs(grade))
+    set((state) => ({
+      fx: {
+        ...state.fx,
+        vaultReveal: next,
+        vaultRevealIndex: nextIndex,
+        unclassifiedFx: next.grade === 'uncategorized',
+      },
+    }))
+    sfx.gacha()
   },
+
+  skipVaultReveals: () => {
+    const current = get()
+    if (current.fx.vaultReveals.length !== VAULT_TEN_COUNT || !current.fx.vaultReveal) return
+    current.fx.vaultReveals
+      .slice(current.fx.vaultRevealIndex)
+      .filter((reveal) => reveal.grade === 'uncategorized')
+      .forEach(() => applyVaultUnclassifiedPenalty())
+    finishVaultReveals(true)
+  },
+
+  grantRewardedAdShards: () =>
+    set((s) => ({
+      shards: s.shards + REWARDED_AD_SHARDS,
+      message: `분실물 대장 열람 보상 · 파편 +${REWARDED_AD_SHARDS}`,
+      fx: { ...s.fx, shardPop: s.fx.shardPop + 1 },
+    })),
 
   clearTypingRule: () => {
     const typingRule = get().fx.typingRule

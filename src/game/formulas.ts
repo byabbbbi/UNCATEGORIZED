@@ -18,6 +18,8 @@ export function calcCoherenceLoss(chaos: number, plausibility: number): number {
 export function calcProclaimImpact(concept: Concept) {
   const D = calcD(concept.chaos, concept.plausibility)
   const coherenceLoss = calcCoherenceLoss(concept.chaos, concept.plausibility)
-  const shardsGained = Math.floor(D / 5)
+  // 선포가 파편 경제의 중심이 되도록, 파괴력의 1/3을 보상한다.
+  // D 자체와 정합성 공식은 건드리지 않는다.
+  const shardsGained = Math.floor(D / 3)
   return { D, coherenceLoss, shardsGained }
 }

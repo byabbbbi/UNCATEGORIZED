@@ -1,5 +1,6 @@
 import { caseDescription, caseProgressLabel, createEraCase } from '../data/caseFiles'
 import { MAX_ERA, MAX_PROCLAMATIONS_PER_ERA } from '../data/initial'
+import { CASE_SHARD_REWARD } from '../data/vaultEconomy'
 import { useGameStore } from '../store/gameStore'
 import { GameGlyph } from './GameGlyph'
 import './MobileEraMap.css'
@@ -41,11 +42,11 @@ export function MobileEraMap() {
   } else if (remaining === 0 && caseReady) {
     nextTitle = '시대 마감 준비 완료'
     nextDetail = era < MAX_ERA
-      ? '사건 보상 파편 3개와 정합성 8을 받고 다음 시대로 이동합니다.'
-      : '사건 보상 파편 3개를 받은 뒤 세계의 엔딩을 판정합니다.'
+      ? `사건 보상 파편 ${CASE_SHARD_REWARD}개와 정합성 8을 받고 다음 시대로 이동합니다.`
+      : `사건 보상 파편 ${CASE_SHARD_REWARD}개를 받은 뒤 세계의 엔딩을 판정합니다.`
   } else if (remaining === 0) {
     nextTitle = '선포를 모두 사용했습니다'
-    nextDetail = '사건은 미완료입니다. 마감하면 보상 파편 3개를 포기합니다.'
+    nextDetail = `사건은 미완료입니다. 마감하면 보상 파편 ${CASE_SHARD_REWARD}개를 포기합니다.`
   }
 
   return (
@@ -84,7 +85,7 @@ export function MobileEraMap() {
         <div className="mobile-era-map__case-track" aria-label={`사건 진행 ${Math.round(eventProgress)}%`}>
           <i style={{ width: `${eventProgress}%` }} />
         </div>
-        <p><GameGlyph kind="shard" /> 종결 보상 <b>파편 3개</b></p>
+        <p><GameGlyph kind="shard" /> 종결 보상 <b>파편 {CASE_SHARD_REWARD}개</b></p>
       </section>
 
       <section className="mobile-era-map__proclamations" aria-labelledby="era-proclamation-title">
@@ -125,7 +126,7 @@ export function MobileEraMap() {
                     <span>제{number}시대</span>
                     <strong>{caseDescription(pastCase)}</strong>
                     <em className={rewarded ? 'is-rewarded' : ''}>
-                      {rewarded ? '사건 종결 · 파편 +3' : '보상 없이 종결'}
+                      {rewarded ? `사건 종결 · 파편 +${CASE_SHARD_REWARD}` : '보상 없이 종결'}
                     </em>
                   </li>
                 )

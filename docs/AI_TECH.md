@@ -81,7 +81,7 @@ IndexedDB에 값이 없으면 `src/data/preload.json`에서 같은 캐시 키를
 return Math.min(60 + depth * 12, 80 + era * 20)
 return (chaos * plausibility) / 100
 return 4 + Math.max(0, chaos - plausibility) / 4
-const shardsGained = Math.floor(D / 5)
+const shardsGained = Math.floor(D / 3)
 ```
 
 ## 5. 세계 상태의 프롬프트 주입
